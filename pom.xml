@@ -14,13 +14,11 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
   <dependencies>
-    <!-- OpenCV sistema -->
+    <!-- OpenCV multiplataforma -->
     <dependency>
-      <groupId>org.opencv</groupId>
+      <groupId>org.openpnp</groupId>
       <artifactId>opencv</artifactId>
-      <version>4.13.0</version>
-      <scope>system</scope>
-      <systemPath>/usr/share/java/opencv4/opencv-4130.jar</systemPath>
+      <version>4.7.0-0</version>
     </dependency>
     <!-- SQLite -->
     <dependency>
