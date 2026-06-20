@@ -350,6 +350,7 @@ public class VentanaReunion extends JFrame {
         msg.setRoomCode(roomCode);
         conexion.enviar(msg);
         dispose();
+        conexion.volverAlInicio();
     }
 
     // ── UTILIDAD ──────────────────────────────────────────────────────────────

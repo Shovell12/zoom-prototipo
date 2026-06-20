@@ -48,7 +48,9 @@ public class ConexionCliente {
             });
 
             // Escuchar respuestas en hilo separado
-            new Thread(this::escuchar).start();
+            Thread hiloEscucha = new Thread(this::escuchar);
+            hiloEscucha.setDaemon(true);
+            hiloEscucha.start();
 
         } catch (IOException e) {
             JOptionPane.showMessageDialog(null,
@@ -197,6 +199,13 @@ public class ConexionCliente {
 
     public void enviar(MensajeSocket msg) {
         if (salida != null) salida.println(gson.toJson(msg));
+    }
+
+    public void volverAlInicio() {
+        ventanaReunion = null;
+        SwingUtilities.invokeLater(() -> {
+            if (ventanaPrincipal != null) ventanaPrincipal.setVisible(true);
+        });
     }
 
     // ── MAIN DEL CLIENTE ──────────────────────────────────────────────────────

@@ -40,17 +40,61 @@ public class Servidor {
         ExecutorService pool = Executors.newCachedThreadPool();
         String ip = obtenerIpLocal();
         System.out.println("Servidor iniciado — IP: " + ip + "  Puerto: " + PUERTO);
-        javax.swing.JOptionPane.showMessageDialog(null,
-                "Servidor iniciado.\n\nIP para clientes: " + ip + "\nPuerto: " + PUERTO,
-                "Servidor activo", javax.swing.JOptionPane.INFORMATION_MESSAGE);
-        try (ServerSocket servidor = new ServerSocket(PUERTO)) {
-            while (true) {
-                Socket cliente = servidor.accept();
-                System.out.println("Nueva conexión: " + cliente.getInetAddress());
-                pool.execute(new ManejadorCliente(cliente));
-            }
+
+        try {
+            ServerSocket servidor = new ServerSocket(PUERTO);
+
+            Thread hiloAceptar = new Thread(() -> {
+                try {
+                    while (!servidor.isClosed()) {
+                        Socket cliente = servidor.accept();
+                        System.out.println("Nueva conexión: " + cliente.getInetAddress());
+                        pool.execute(new ManejadorCliente(cliente));
+                    }
+                } catch (IOException e) {
+                    if (!servidor.isClosed()) {
+                        System.err.println("Error en servidor: " + e.getMessage());
+                    }
+                }
+            });
+            hiloAceptar.setDaemon(true);
+            hiloAceptar.start();
+
+            javax.swing.JFrame ventana = new javax.swing.JFrame("Servidor activo");
+            ventana.setDefaultCloseOperation(javax.swing.JFrame.DO_NOTHING_ON_CLOSE);
+            ventana.setSize(300, 160);
+            ventana.setLocationRelativeTo(null);
+            ventana.setLayout(new java.awt.BorderLayout(10, 10));
+
+            javax.swing.JLabel etiqueta = new javax.swing.JLabel(
+                    "<html><center>Servidor en ejecución.<br/>IP: <b>" + ip + "</b><br/>Puerto: <b>" + PUERTO + "</b></center></html>",
+                    javax.swing.SwingConstants.CENTER);
+            ventana.add(etiqueta, java.awt.BorderLayout.CENTER);
+
+            javax.swing.JButton btnDetener = new javax.swing.JButton("Detener servidor");
+            btnDetener.addActionListener(e -> {
+                int confirmacion = javax.swing.JOptionPane.showConfirmDialog(ventana,
+                        "¿Detener el servidor? Se desconectarán todos los clientes.",
+                        "Confirmar", javax.swing.JOptionPane.YES_NO_OPTION);
+                if (confirmacion == javax.swing.JOptionPane.YES_OPTION) {
+                    try {
+                        servidor.close();
+                    } catch (IOException ex) {
+                        System.err.println("Error al cerrar servidor: " + ex.getMessage());
+                    }
+                    pool.shutdownNow();
+                    System.out.println("Servidor detenido.");
+                    ventana.dispose();
+                    System.exit(0);
+                }
+            });
+            javax.swing.JPanel panel = new javax.swing.JPanel();
+            panel.add(btnDetener);
+            ventana.add(panel, java.awt.BorderLayout.SOUTH);
+            ventana.setVisible(true);
+
         } catch (IOException e) {
-            System.err.println("Error en servidor: " + e.getMessage());
+            System.err.println("Error al iniciar servidor: " + e.getMessage());
         }
     }
 
