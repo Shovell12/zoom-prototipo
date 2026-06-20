@@ -21,7 +21,15 @@ public class App {
 
         switch (eleccion) {
             case 0 -> Servidor.main(args);
-            case 1 -> SwingUtilities.invokeLater(() -> new ConexionCliente().iniciar());
+            case 1 -> {
+                String ip = JOptionPane.showInputDialog(
+                        null,
+                        "Ingresa la IP del servidor:",
+                        "Conectar al servidor",
+                        JOptionPane.PLAIN_MESSAGE);
+                if (ip == null || ip.isBlank()) System.exit(0);
+                SwingUtilities.invokeLater(() -> new ConexionCliente(ip.trim()).iniciar());
+            }
             default -> System.exit(0);
         }
     }

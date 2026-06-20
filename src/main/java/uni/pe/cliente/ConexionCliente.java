@@ -11,9 +11,9 @@ import java.util.Base64;
 
 public class ConexionCliente {
 
-    private static final String HOST   = "192.168.1.55";
-    private static final int    PUERTO = 5000;
+    private static final int PUERTO = 5000;
 
+    private final String host;
     private Socket socket;
     private PrintWriter salida;
     private final Gson gson = new Gson();
@@ -31,9 +31,13 @@ public class ConexionCliente {
     private ByteArrayOutputStream bufferDescarga;
     private String nombreArchivoDescarga;
 
+    public ConexionCliente(String host) {
+        this.host = host;
+    }
+
     public void iniciar() {
         try {
-            socket = new Socket(HOST, PUERTO);
+            socket = new Socket(host, PUERTO);
             salida = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
             System.out.println("Conectado al servidor.");
 
@@ -197,6 +201,7 @@ public class ConexionCliente {
 
     // ── MAIN DEL CLIENTE ──────────────────────────────────────────────────────
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new ConexionCliente().iniciar());
+        String ip = args.length > 0 ? args[0] : "localhost";
+        SwingUtilities.invokeLater(() -> new ConexionCliente(ip).iniciar());
     }
 }

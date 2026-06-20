@@ -1,5 +1,7 @@
 package uni.pe.basedatos;
 
+import java.io.File;
+import java.net.URI;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -7,8 +9,26 @@ import java.sql.Statement;
 
 public class ConexionDB {
 
-    private static final String URL = "jdbc:sqlite:basedatos/zoom.db";
+    private static final String URL = buildUrl();
     private static Connection conexion = null;
+
+    private static String buildUrl() {
+        try {
+            URI uri = ConexionDB.class.getProtectionDomain()
+                    .getCodeSource().getLocation().toURI();
+            File location = new File(uri);
+            // Si estamos en clases compiladas (target/classes), subimos dos niveles al raíz del proyecto.
+            // Si estamos en un JAR, usamos el directorio que contiene el JAR.
+            File baseDir = location.isDirectory()
+                    ? location.getParentFile().getParentFile()
+                    : location.getParentFile();
+            File dbDir = new File(baseDir, "basedatos");
+            dbDir.mkdirs();
+            return "jdbc:sqlite:" + new File(dbDir, "zoom.db").getAbsolutePath();
+        } catch (Exception e) {
+            return "jdbc:sqlite:basedatos/zoom.db";
+        }
+    }
 
     public static Connection getConexion() {
         if (conexion == null) {

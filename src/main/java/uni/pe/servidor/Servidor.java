@@ -5,6 +5,8 @@ import uni.pe.basedatos.ConexionDB;
 import uni.pe.protocolo.MensajeSocket;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
@@ -17,10 +19,30 @@ public class Servidor {
     private static final Map<String, Set<Integer>> salas = new ConcurrentHashMap<>();
     private static final Gson gson = new Gson();
 
+    private static String obtenerIpLocal() {
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface iface = interfaces.nextElement();
+                if (iface.isLoopback() || !iface.isUp()) continue;
+                Enumeration<InetAddress> addresses = iface.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    InetAddress addr = addresses.nextElement();
+                    if (addr.getAddress().length == 4) return addr.getHostAddress();
+                }
+            }
+        } catch (Exception ignored) {}
+        return "desconocida";
+    }
+
     public static void main(String[] args) {
         ConexionDB.getConexion();
         ExecutorService pool = Executors.newCachedThreadPool();
-        System.out.println("Servidor iniciado en puerto " + PUERTO);
+        String ip = obtenerIpLocal();
+        System.out.println("Servidor iniciado — IP: " + ip + "  Puerto: " + PUERTO);
+        javax.swing.JOptionPane.showMessageDialog(null,
+                "Servidor iniciado.\n\nIP para clientes: " + ip + "\nPuerto: " + PUERTO,
+                "Servidor activo", javax.swing.JOptionPane.INFORMATION_MESSAGE);
         try (ServerSocket servidor = new ServerSocket(PUERTO)) {
             while (true) {
                 Socket cliente = servidor.accept();
