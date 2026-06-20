@@ -71,15 +71,12 @@ public class Servidor {
                     javax.swing.SwingConstants.CENTER);
             ventana.add(etiqueta, java.awt.BorderLayout.CENTER);
 
-            javax.swing.JButton btnDetener = new javax.swing.JButton("Detener servidor");
-            btnDetener.addActionListener(e -> {
+            Runnable detener = () -> {
                 int confirmacion = javax.swing.JOptionPane.showConfirmDialog(ventana,
                         "¿Detener el servidor? Se desconectarán todos los clientes.",
                         "Confirmar", javax.swing.JOptionPane.YES_NO_OPTION);
                 if (confirmacion == javax.swing.JOptionPane.YES_OPTION) {
-                    try {
-                        servidor.close();
-                    } catch (IOException ex) {
+                    try { servidor.close(); } catch (IOException ex) {
                         System.err.println("Error al cerrar servidor: " + ex.getMessage());
                     }
                     pool.shutdownNow();
@@ -87,7 +84,14 @@ public class Servidor {
                     ventana.dispose();
                     System.exit(0);
                 }
+            };
+
+            ventana.addWindowListener(new java.awt.event.WindowAdapter() {
+                public void windowClosing(java.awt.event.WindowEvent e) { detener.run(); }
             });
+
+            javax.swing.JButton btnDetener = new javax.swing.JButton("Detener servidor");
+            btnDetener.addActionListener(e -> detener.run());
             javax.swing.JPanel panel = new javax.swing.JPanel();
             panel.add(btnDetener);
             ventana.add(panel, java.awt.BorderLayout.SOUTH);
