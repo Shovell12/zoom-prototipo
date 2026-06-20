@@ -270,7 +270,10 @@ public class ManejadorCliente implements Runnable {
 
     // ── SALIR ──────────────────────────────────────────────────────────────────
     private void handleSalir(MensajeSocket msg) {
-        desconectar();
+        if (roomCode != null) {
+            Servidor.salirDeSala(roomCode, idUsuario);
+            roomCode = null;
+        }
     }
 
     // ── UTILIDADES ─────────────────────────────────────────────────────────────
