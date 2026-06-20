@@ -8,6 +8,7 @@ import uni.pe.protocolo.MensajeSocket;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.Base64;
 import java.util.List;
@@ -29,8 +30,8 @@ public class ManejadorCliente implements Runnable {
     @Override
     public void run() {
         try (
-                BufferedReader entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                PrintWriter salida = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true)
+                BufferedReader entrada = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+                PrintWriter salida = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true)
         ) {
             this.salida = salida;
             String linea;

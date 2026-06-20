@@ -6,10 +6,11 @@ import uni.pe.protocolo.MensajeSocket;
 import javax.swing.*;
 import java.io.*;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 
 public class ConexionCliente {
 
-    private static final String HOST   = "10.11.7.114"; // cambiar por IP del servidor
+    private static final String HOST   = "192.168.1.55";
     private static final int    PUERTO = 5000;
 
     private Socket socket;
@@ -29,7 +30,7 @@ public class ConexionCliente {
     public void iniciar() {
         try {
             socket = new Socket(HOST, PUERTO);
-            salida = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);
+            salida = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
             System.out.println("Conectado al servidor.");
 
             // Mostrar login
@@ -50,7 +51,7 @@ public class ConexionCliente {
 
     private void escuchar() {
         try (BufferedReader entrada = new BufferedReader(
-                new InputStreamReader(socket.getInputStream()))) {
+                new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))) {
             String linea;
             while ((linea = entrada.readLine()) != null) {
                 MensajeSocket msg = gson.fromJson(linea, MensajeSocket.class);
