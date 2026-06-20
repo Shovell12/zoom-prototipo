@@ -118,6 +118,12 @@ public class VentanaReunion extends JFrame {
         panelArchivos.setBorder(BorderFactory.createTitledBorder("Archivos compartidos"));
         panelArchivos.add(new JScrollPane(listaArchivos), BorderLayout.CENTER);
 
+        listaArchivos.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getClickCount() == 2) descargarArchivo();
+            }
+        });
+
         JButton btnEnviarArchivo = new JButton("Enviar archivo");
         panelArchivos.add(btnEnviarArchivo, BorderLayout.SOUTH);
         panelDer.add(panelArchivos, BorderLayout.CENTER);
@@ -248,6 +254,28 @@ public class VentanaReunion extends JFrame {
 
     public void agregarArchivo(String nombre) {
         SwingUtilities.invokeLater(() -> modeloArchivos.addElement(nombre));
+    }
+
+    private void descargarArchivo() {
+        String nombre = listaArchivos.getSelectedValue();
+        if (nombre == null) return;
+        MensajeSocket msg = new MensajeSocket();
+        msg.setType(MensajeSocket.FILE_DOWNLOAD_REQUEST);
+        msg.setNombreArchivo(nombre);
+        msg.setRoomCode(roomCode);
+        conexion.enviar(msg);
+    }
+
+    public void guardarDescarga(String nombre, byte[] datos) {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setSelectedFile(new java.io.File(nombre));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        try {
+            Files.write(chooser.getSelectedFile().toPath(), datos);
+            agregarMensajeChat("Archivo descargado: " + nombre);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "Error al guardar: " + e.getMessage());
+        }
     }
 
     // ── CÁMARA ────────────────────────────────────────────────────────────────

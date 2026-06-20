@@ -57,7 +57,8 @@ public class ManejadorCliente implements Runnable {
             case MensajeSocket.FILE_START         -> handleFileStart(msg);
             case MensajeSocket.FILE_CHUNK         -> handleFileChunk(msg);
             case MensajeSocket.FILE_END           -> handleFileEnd(msg);
-            case MensajeSocket.CAMERA_FRAME       -> handleCamara(msg);
+            case MensajeSocket.CAMERA_FRAME        -> handleCamara(msg);
+            case MensajeSocket.FILE_DOWNLOAD_REQUEST -> handleDescarga(msg);
             case MensajeSocket.LEAVE_ROOM         -> handleSalir(msg);
             default -> enviar(error("Tipo de mensaje desconocido: " + msg.getType()));
         }
@@ -215,6 +216,48 @@ public class ManejadorCliente implements Runnable {
             System.out.println("Archivo guardado: " + destino);
         } catch (IOException e) {
             System.err.println("Error al guardar archivo: " + e.getMessage());
+        }
+    }
+
+    // ── DESCARGA ───────────────────────────────────────────────────────────────
+    private void handleDescarga(MensajeSocket msg) {
+        Path archivo = Paths.get("archivos", msg.getRoomCode(), msg.getNombreArchivo());
+        if (!Files.exists(archivo)) {
+            enviar(error("Archivo no encontrado: " + msg.getNombreArchivo()));
+            return;
+        }
+        try {
+            byte[] datos = Files.readAllBytes(archivo);
+            int CHUNK = 4096;
+            int total = (int) Math.ceil((double) datos.length / CHUNK);
+
+            MensajeSocket start = new MensajeSocket();
+            start.setType(MensajeSocket.FILE_START);
+            start.setNombreArchivo(msg.getNombreArchivo());
+            start.setTamanio(datos.length);
+            start.setTotalChunks(total);
+            enviar(start);
+
+            for (int i = 0; i < total; i++) {
+                int desde = i * CHUNK;
+                int hasta = Math.min(desde + CHUNK, datos.length);
+                byte[] chunk = new byte[hasta - desde];
+                System.arraycopy(datos, desde, chunk, 0, chunk.length);
+                MensajeSocket chunkMsg = new MensajeSocket();
+                chunkMsg.setType(MensajeSocket.FILE_CHUNK);
+                chunkMsg.setNombreArchivo(msg.getNombreArchivo());
+                chunkMsg.setChunkBase64(Base64.getEncoder().encodeToString(chunk));
+                chunkMsg.setChunkIndex(i);
+                chunkMsg.setTotalChunks(total);
+                enviar(chunkMsg);
+            }
+
+            MensajeSocket end = new MensajeSocket();
+            end.setType(MensajeSocket.FILE_END);
+            end.setNombreArchivo(msg.getNombreArchivo());
+            enviar(end);
+        } catch (IOException e) {
+            enviar(error("Error al leer el archivo: " + e.getMessage()));
         }
     }
 

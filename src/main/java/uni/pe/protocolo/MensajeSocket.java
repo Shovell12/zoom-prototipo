@@ -17,7 +17,8 @@ public class MensajeSocket {
     public static final String FILE_START          = "FILE_START";
     public static final String FILE_CHUNK          = "FILE_CHUNK";
     public static final String FILE_END            = "FILE_END";
-    public static final String FILE_NOTIFY         = "FILE_NOTIFY";
+    public static final String FILE_NOTIFY          = "FILE_NOTIFY";
+    public static final String FILE_DOWNLOAD_REQUEST= "FILE_DOWNLOAD_REQUEST";
     public static final String CAMERA_FRAME        = "CAMERA_FRAME";
     public static final String LEAVE_ROOM          = "LEAVE_ROOM";
     public static final String ERROR               = "ERROR";

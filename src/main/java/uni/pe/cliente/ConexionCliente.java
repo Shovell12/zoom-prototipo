@@ -7,6 +7,7 @@ import javax.swing.*;
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 public class ConexionCliente {
 
@@ -26,6 +27,9 @@ public class ConexionCliente {
     private String nombreUsuario;
     private String roomCode;
     private boolean esHost;
+
+    private ByteArrayOutputStream bufferDescarga;
+    private String nombreArchivoDescarga;
 
     public void iniciar() {
         try {
@@ -74,6 +78,9 @@ public class ConexionCliente {
             case MensajeSocket.ADMIT_RESPONSE      -> handleAdmitResp(msg);
             case MensajeSocket.CHAT_MESSAGE        -> handleChat(msg);
             case MensajeSocket.FILE_NOTIFY         -> handleFileNotif(msg);
+            case MensajeSocket.FILE_START          -> iniciarDescarga(msg);
+            case MensajeSocket.FILE_CHUNK          -> recibirChunkDescarga(msg);
+            case MensajeSocket.FILE_END            -> finalizarDescarga();
             case MensajeSocket.CAMERA_FRAME        -> handleCamara(msg);
             case MensajeSocket.ERROR               -> mostrarError(msg.getMensaje());
         }
@@ -149,6 +156,29 @@ public class ConexionCliente {
     private void handleFileNotif(MensajeSocket msg) {
         if (ventanaReunion != null)
             ventanaReunion.agregarArchivo(msg.getNombreArchivo());
+    }
+
+    private void iniciarDescarga(MensajeSocket msg) {
+        bufferDescarga = new ByteArrayOutputStream();
+        nombreArchivoDescarga = msg.getNombreArchivo();
+    }
+
+    private void recibirChunkDescarga(MensajeSocket msg) {
+        if (bufferDescarga != null) {
+            byte[] datos = Base64.getDecoder().decode(msg.getChunkBase64());
+            bufferDescarga.write(datos, 0, datos.length);
+        }
+    }
+
+    private void finalizarDescarga() {
+        if (bufferDescarga == null) return;
+        byte[] datos = bufferDescarga.toByteArray();
+        String nombre = nombreArchivoDescarga;
+        bufferDescarga = null;
+        nombreArchivoDescarga = null;
+        SwingUtilities.invokeLater(() -> {
+            if (ventanaReunion != null) ventanaReunion.guardarDescarga(nombre, datos);
+        });
     }
 
     private void handleCamara(MensajeSocket msg) {
