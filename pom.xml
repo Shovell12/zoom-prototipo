@@ -37,6 +37,12 @@
       <artifactId>jbcrypt</artifactId>
       <version>0.4</version>
     </dependency>
+    <!--Flatlaf -->
+    <dependency>
+      <groupId>com.formdev</groupId>
+      <artifactId>flatlaf</artifactId>
+      <version>3.5</version>
+    </dependency>
     <!-- JUnit -->
     <dependency>
       <groupId>junit</groupId>

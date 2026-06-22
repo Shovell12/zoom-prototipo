@@ -122,7 +122,7 @@ public class VentanaReunion extends JFrame {
         panelEnvio.add(btnEnviar, BorderLayout.EAST);
         panelChat.add(panelEnvio, BorderLayout.SOUTH);
 
-        // ── Panel derecho: archivos + controles ──
+        // ── Panel derecho: archivos compartidos ──
         JPanel panelDer = new JPanel(new BorderLayout(5, 5));
         panelDer.setPreferredSize(new Dimension(200, 0));
 
@@ -140,25 +140,49 @@ public class VentanaReunion extends JFrame {
 
         JButton btnEnviarArchivo = new JButton("Enviar archivo");
         panelArchivos.add(btnEnviarArchivo, BorderLayout.SOUTH);
-        panelDer.add(panelArchivos, BorderLayout.CENTER);
+        panelDer.add(panelArchivos, BorderLayout.CENTER); // Ocupará todo el espacio vertical en la derecha
 
-        JPanel panelControles = new JPanel(new GridLayout(4, 1, 4, 4));
-        JButton btnCamara        = new JButton("Activar cámara");
-        JButton btnMicrofono     = new JButton("Activar micrófono");
-        JButton btnSalidaAudio   = new JButton("Salida de audio");
-        JButton btnSalir         = new JButton("Salir de sala");
-        btnSalir.setBackground(new Color(200, 50, 50));
+        // ── BARRA DE CONTROLES INFERIOR HORIZONTAL (ESTILO ZOOM CLÁSICO) ──
+        JPanel barraControlesInferior = new JPanel(new BorderLayout());
+        barraControlesInferior.setBackground(new Color(26, 26, 26)); // Gris muy oscuro, estilo Zoom
+        barraControlesInferior.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+
+        // 1. Panel central para alinear los controles multimedia al medio
+        JPanel panelCentroControles = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
+        panelCentroControles.setOpaque(false); // Transparente para que se vea el fondo oscuro
+
+        // Inicializamos los botones en estado "Apagado" para coincidir con la realidad
+        JButton btnMicrofono   = crearBotonZoom("Reactivar", cargarIcono("mic_off.png"));
+        JButton btnCamara      = crearBotonZoom("Iniciar Video", cargarIcono("cam_off.png"));
+        JButton btnSalidaAudio = crearBotonZoom("Audio", cargarIcono("audio.png"));
+
+        panelCentroControles.add(btnMicrofono);
+        panelCentroControles.add(btnCamara);
+        panelCentroControles.add(btnSalidaAudio);
+
+        // 2. Panel derecho exclusivo para el botón de salir
+        JPanel panelDerechoControles = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 5));
+        panelDerechoControles.setOpaque(false);
+
+        JButton btnSalir = new JButton("Finalizar");
+        btnSalir.setBackground(new Color(228, 40, 40)); // Rojo Zoom
         btnSalir.setForeground(Color.WHITE);
-        panelControles.add(btnCamara);
-        panelControles.add(btnMicrofono);
-        panelControles.add(btnSalidaAudio);
-        panelControles.add(btnSalir);
-        panelDer.add(panelControles, BorderLayout.SOUTH);
+        btnSalir.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnSalir.putClientProperty("JButton.buttonType", "roundRect"); // Bordes redondeados
+        btnSalir.setBorder(BorderFactory.createEmptyBorder(6, 16, 6, 16)); // Relleno interno
 
-        // Ensamblar
-        panelPrincipal.add(panelIzq,   BorderLayout.WEST);
-        panelPrincipal.add(panelChat,  BorderLayout.CENTER);
-        panelPrincipal.add(panelDer,   BorderLayout.EAST);
+        panelDerechoControles.add(btnSalir);
+
+        // Ensamblar la barra
+        barraControlesInferior.add(panelCentroControles, BorderLayout.CENTER);
+        barraControlesInferior.add(panelDerechoControles, BorderLayout.EAST);
+
+        // ── ENSAMBLADO FINAL EN EL PANEL PRINCIPAL ──
+        panelPrincipal.add(panelIzq,               BorderLayout.WEST);
+        panelPrincipal.add(panelChat,              BorderLayout.CENTER);
+        panelPrincipal.add(panelDer,               BorderLayout.EAST);
+        panelPrincipal.add(barraControlesInferior, BorderLayout.SOUTH); // Posicionamiento en el fondo
+
         add(panelPrincipal);
 
         // Acciones
@@ -310,13 +334,15 @@ public class VentanaReunion extends JFrame {
             }
             timerCamara = new javax.swing.Timer(200, e -> capturarYEnviar());
             timerCamara.start();
-            btn.setText("Detener cámara");
+            // ¡Cambio aquí! Muestra la opción de detener con un emoji de prohibido o cámara inactiva
+            actualizarBotonZoom(btn, "Detener Video", cargarIcono("cam_on.png")); // Cuando lo enciendes
         } else {
             timerCamara.stop();
             if (camara != null) camara.detener();
             lblCamaraLocal.setIcon(null);
             lblCamaraLocal.setText("Tu cámara");
-            btn.setText("Activar cámara");
+            // ¡Cambio aquí! Vuelve al estado inicial
+            actualizarBotonZoom(btn, "Iniciar Video", cargarIcono("cam_off.png")); // Apagado
         }
     }
 
@@ -366,18 +392,18 @@ public class VentanaReunion extends JFrame {
     // ── MICRÓFONO ─────────────────────────────────────────────────────────────
     private void toggleMicrofono(JButton btn) {
         if (!micActivo) {
-            List<Mixer.Info> mics = MicrofoneCaptura.listarMicrofonos();
+            List<javax.sound.sampled.Mixer.Info> mics = MicrofoneCaptura.listarMicrofonos();
             if (mics.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "No se encontraron micrófonos disponibles.");
                 return;
             }
 
-            Mixer.Info seleccionado;
+            javax.sound.sampled.Mixer.Info seleccionado;
             if (mics.size() == 1) {
                 seleccionado = mics.get(0);
             } else {
                 DefaultComboBoxModel<String> modelo = new DefaultComboBoxModel<>();
-                for (Mixer.Info mi : mics) modelo.addElement(mi.getName());
+                for (javax.sound.sampled.Mixer.Info mi : mics) modelo.addElement(mi.getName());
                 JComboBox<String> combo = new JComboBox<>(modelo);
                 int res = JOptionPane.showConfirmDialog(this, combo,
                         "Selecciona un micrófono", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
@@ -395,21 +421,25 @@ public class VentanaReunion extends JFrame {
                 while (micActivo) {
                     byte[] chunk = microfono.capturarChunk();
                     if (chunk != null) {
-                        MensajeSocket msg = new MensajeSocket();
-                        msg.setType(MensajeSocket.AUDIO_FRAME);
+                        uni.pe.protocolo.MensajeSocket msg = new uni.pe.protocolo.MensajeSocket();
+                        msg.setType(uni.pe.protocolo.MensajeSocket.AUDIO_FRAME);
                         msg.setRoomCode(roomCode);
-                        msg.setAudioBase64(Base64.getEncoder().encodeToString(chunk));
+                        msg.setAudioBase64(java.util.Base64.getEncoder().encodeToString(chunk));
                         conexion.enviar(msg);
                     }
                 }
             });
             hiloMicrofono.setDaemon(true);
             hiloMicrofono.start();
-            btn.setText("Silenciar");
+
+            // ¡Cambio aquí! Usa la imagen PNG para el micrófono encendido
+            actualizarBotonZoom(btn, "Silenciar", cargarIcono("mic_on.png"));
         } else {
             micActivo = false;
             if (microfono != null) microfono.detener();
-            btn.setText("Activar micrófono");
+
+            // ¡Cambio aquí! Usa la imagen PNG para el micrófono apagado
+            actualizarBotonZoom(btn, "Reactivar", cargarIcono("mic_off.png"));
         }
     }
 
@@ -500,5 +530,89 @@ public class VentanaReunion extends JFrame {
         lbl.setForeground(Color.WHITE);
         lbl.setOpaque(true);
         return lbl;
+    }
+    // ── UTILIDAD PARA BOTONES ESTILO ZOOM (VERSIÓN NATIVA) ────────────────────
+
+    // 1. Dibuja el emoji como una imagen interna para evitar bugs de HTML
+    private Icon crearIconoEmoji(String emoji, int size) {
+        BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = img.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setFont(new Font("SansSerif", Font.PLAIN, size - 4));
+        FontMetrics fm = g2.getFontMetrics();
+        int x = (size - fm.stringWidth(emoji)) / 2;
+        int y = ((size - fm.getHeight()) / 2) + fm.getAscent();
+        g2.drawString(emoji, x, y);
+        g2.dispose();
+        return new ImageIcon(img);
+    }
+
+    // 2. Crea el botón usando posicionamiento nativo de Swing
+    private JButton crearBotonZoom(String texto, String icono) {
+        JButton btn = new JButton(texto);
+        btn.setIcon(crearIconoEmoji(icono, 24)); // Tamaño del emoji
+
+        // Magia de Swing: Ícono arriba, texto abajo, centrados
+        btn.setVerticalTextPosition(SwingConstants.BOTTOM);
+        btn.setHorizontalTextPosition(SwingConstants.CENTER);
+        btn.setIconTextGap(4); // Espacio entre el emoji y las letras
+
+        // Estética FlatLaf
+        btn.putClientProperty("JButton.buttonType", "borderless");
+        btn.setForeground(new Color(220, 220, 220));
+        btn.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Elimina el recuadro gris feo al hacer clic
+        btn.setFocusPainted(false);
+        btn.setFocusable(false);
+
+        return btn;
+    }
+
+    // 3. Actualiza el texto y la imagen de forma limpia
+    private void actualizarBotonZoom(JButton btn, String texto, String icono) {
+        btn.setText(texto);
+        btn.setIcon(crearIconoEmoji(icono, 24));
+    }
+    // ── CARGA DE ÍCONOS DESDE IMÁGENES PNG ──
+    private Icon cargarIcono(String nombreArchivo) {
+        try {
+            // Busca la imagen en src/main/resources/iconos/
+            java.net.URL url = getClass().getResource("/iconos/" + nombreArchivo);
+            if (url != null) {
+                BufferedImage img = javax.imageio.ImageIO.read(url);
+                // Escala la imagen a 24x24 píxeles para que encaje perfecto en el botón
+                Image scaled = img.getScaledInstance(24, 24, Image.SCALE_SMOOTH);
+                return new ImageIcon(scaled);
+            } else {
+                System.err.println("No se encontró la imagen: " + nombreArchivo);
+            }
+        } catch (Exception e) {
+            System.err.println("Error al cargar " + nombreArchivo + ": " + e.getMessage());
+        }
+        // Devuelve un icono vacío si falla para que no se caiga el programa
+        return new ImageIcon(new BufferedImage(24, 24, BufferedImage.TYPE_INT_ARGB));
+    }
+
+    // ── CONSTRUCTORES DEL BOTÓN ──
+    private JButton crearBotonZoom(String texto, Icon icono) {
+        JButton btn = new JButton(texto, icono);
+        btn.setVerticalTextPosition(SwingConstants.BOTTOM);
+        btn.setHorizontalTextPosition(SwingConstants.CENTER);
+        btn.setIconTextGap(4);
+
+        btn.putClientProperty("JButton.buttonType", "borderless");
+        btn.setForeground(new Color(220, 220, 220));
+        btn.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setFocusPainted(false);
+        btn.setFocusable(false);
+        return btn;
+    }
+
+    private void actualizarBotonZoom(JButton btn, String texto, Icon icono) {
+        btn.setText(texto);
+        btn.setIcon(icono);
     }
 }
