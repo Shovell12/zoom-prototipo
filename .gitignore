@@ -32,6 +32,10 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+# Base de datos y archivos subidos en pruebas locales
+archivos/
+basedatos/
+
 ### VS Code ###
 .vscode/
 
