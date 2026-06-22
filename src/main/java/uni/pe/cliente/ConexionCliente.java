@@ -88,6 +88,7 @@ public class ConexionCliente {
             case MensajeSocket.FILE_CHUNK          -> recibirChunkDescarga(msg);
             case MensajeSocket.FILE_END            -> finalizarDescarga();
             case MensajeSocket.CAMERA_FRAME        -> handleCamara(msg);
+            case MensajeSocket.AUDIO_FRAME         -> handleAudio(msg);
             case MensajeSocket.ERROR               -> mostrarError(msg.getMensaje());
         }
     }
@@ -190,6 +191,11 @@ public class ConexionCliente {
     private void handleCamara(MensajeSocket msg) {
         if (ventanaReunion != null)
             ventanaReunion.mostrarFrameRemoto(msg.getFrameBase64());
+    }
+
+    private void handleAudio(MensajeSocket msg) {
+        if (ventanaReunion != null)
+            ventanaReunion.reproducirAudio(msg.getAudioBase64());
     }
 
     private void mostrarError(String texto) {

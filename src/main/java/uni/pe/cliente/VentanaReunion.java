@@ -2,6 +2,7 @@ package uni.pe.cliente;
 
 import uni.pe.protocolo.MensajeSocket;
 
+import javax.sound.sampled.*;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -9,7 +10,9 @@ import java.io.*;
 import java.nio.file.Files;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class VentanaReunion extends JFrame {
 
@@ -33,6 +36,17 @@ public class VentanaReunion extends JFrame {
     private JLabel lblCamaraRemota;
     private javax.swing.Timer timerCamara;
     private uni.pe.cliente.CamaraCaptura camara;
+
+    // Micrófono (captura)
+    private MicrofoneCaptura microfono;
+    private Thread hiloMicrofono;
+    private volatile boolean micActivo = false;
+
+    // Audio (reproducción)
+    private SourceDataLine lineaAudio;
+    private Thread hiloReproduccion;
+    private final LinkedBlockingQueue<byte[]> colaAudio = new LinkedBlockingQueue<>();
+    private Mixer.Info mixerSalida = null;
 
     // Archivos
     private JList<String> listaArchivos;
@@ -128,12 +142,16 @@ public class VentanaReunion extends JFrame {
         panelArchivos.add(btnEnviarArchivo, BorderLayout.SOUTH);
         panelDer.add(panelArchivos, BorderLayout.CENTER);
 
-        JPanel panelControles = new JPanel(new GridLayout(2, 1, 4, 4));
-        JButton btnCamara = new JButton("Activar cámara");
-        JButton btnSalir  = new JButton("Salir de sala");
+        JPanel panelControles = new JPanel(new GridLayout(4, 1, 4, 4));
+        JButton btnCamara        = new JButton("Activar cámara");
+        JButton btnMicrofono     = new JButton("Activar micrófono");
+        JButton btnSalidaAudio   = new JButton("Salida de audio");
+        JButton btnSalir         = new JButton("Salir de sala");
         btnSalir.setBackground(new Color(200, 50, 50));
         btnSalir.setForeground(Color.WHITE);
         panelControles.add(btnCamara);
+        panelControles.add(btnMicrofono);
+        panelControles.add(btnSalidaAudio);
         panelControles.add(btnSalir);
         panelDer.add(panelControles, BorderLayout.SOUTH);
 
@@ -148,7 +166,11 @@ public class VentanaReunion extends JFrame {
         txtMensaje.addActionListener(e -> enviarMensaje());
         btnEnviarArchivo.addActionListener(e -> enviarArchivo());
         btnCamara.addActionListener(e -> toggleCamara(btnCamara));
+        btnMicrofono.addActionListener(e -> toggleMicrofono(btnMicrofono));
+        btnSalidaAudio.addActionListener(e -> seleccionarSalidaAudio());
         btnSalir.addActionListener(e -> salir());
+
+        iniciarReproduccionAudio();
 
         addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent e) { salir(); }
@@ -341,10 +363,126 @@ public class VentanaReunion extends JFrame {
         });
     }
 
+    // ── MICRÓFONO ─────────────────────────────────────────────────────────────
+    private void toggleMicrofono(JButton btn) {
+        if (!micActivo) {
+            List<Mixer.Info> mics = MicrofoneCaptura.listarMicrofonos();
+            if (mics.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No se encontraron micrófonos disponibles.");
+                return;
+            }
+
+            Mixer.Info seleccionado;
+            if (mics.size() == 1) {
+                seleccionado = mics.get(0);
+            } else {
+                DefaultComboBoxModel<String> modelo = new DefaultComboBoxModel<>();
+                for (Mixer.Info mi : mics) modelo.addElement(mi.getName());
+                JComboBox<String> combo = new JComboBox<>(modelo);
+                int res = JOptionPane.showConfirmDialog(this, combo,
+                        "Selecciona un micrófono", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+                if (res != JOptionPane.OK_OPTION) return;
+                seleccionado = mics.get(combo.getSelectedIndex());
+            }
+
+            microfono = new MicrofoneCaptura();
+            if (!microfono.iniciar(seleccionado)) {
+                JOptionPane.showMessageDialog(this, "No se pudo abrir el micrófono seleccionado.");
+                return;
+            }
+            micActivo = true;
+            hiloMicrofono = new Thread(() -> {
+                while (micActivo) {
+                    byte[] chunk = microfono.capturarChunk();
+                    if (chunk != null) {
+                        MensajeSocket msg = new MensajeSocket();
+                        msg.setType(MensajeSocket.AUDIO_FRAME);
+                        msg.setRoomCode(roomCode);
+                        msg.setAudioBase64(Base64.getEncoder().encodeToString(chunk));
+                        conexion.enviar(msg);
+                    }
+                }
+            });
+            hiloMicrofono.setDaemon(true);
+            hiloMicrofono.start();
+            btn.setText("Silenciar");
+        } else {
+            micActivo = false;
+            if (microfono != null) microfono.detener();
+            btn.setText("Activar micrófono");
+        }
+    }
+
+    private void iniciarReproduccionAudio() {
+        if (hiloReproduccion != null) hiloReproduccion.interrupt();
+        if (lineaAudio != null) { lineaAudio.drain(); lineaAudio.close(); }
+        try {
+            DataLine.Info info = new DataLine.Info(SourceDataLine.class, MicrofoneCaptura.FORMATO);
+            if (mixerSalida != null) {
+                lineaAudio = (SourceDataLine) AudioSystem.getMixer(mixerSalida).getLine(info);
+            } else {
+                if (!AudioSystem.isLineSupported(info)) {
+                    System.err.println("Reproducción de audio no soportada.");
+                    return;
+                }
+                lineaAudio = (SourceDataLine) AudioSystem.getLine(info);
+            }
+            lineaAudio.open(MicrofoneCaptura.FORMATO);
+            lineaAudio.start();
+            hiloReproduccion = new Thread(() -> {
+                while (!Thread.currentThread().isInterrupted()) {
+                    try {
+                        byte[] datos = colaAudio.take();
+                        lineaAudio.write(datos, 0, datos.length);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            });
+            hiloReproduccion.setDaemon(true);
+            hiloReproduccion.start();
+        } catch (LineUnavailableException e) {
+            System.err.println("No se pudo iniciar reproductor de audio: " + e.getMessage());
+        }
+    }
+
+    private void seleccionarSalidaAudio() {
+        List<Mixer.Info> dispositivos = MicrofoneCaptura.listarSalidaAudio();
+        if (dispositivos.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No se encontraron dispositivos de salida de audio.");
+            return;
+        }
+        DefaultComboBoxModel<String> modelo = new DefaultComboBoxModel<>();
+        for (Mixer.Info mi : dispositivos) modelo.addElement(mi.getName());
+        JComboBox<String> combo = new JComboBox<>(modelo);
+        if (mixerSalida != null) {
+            for (int i = 0; i < dispositivos.size(); i++) {
+                if (dispositivos.get(i).getName().equals(mixerSalida.getName())) {
+                    combo.setSelectedIndex(i);
+                    break;
+                }
+            }
+        }
+        int res = JOptionPane.showConfirmDialog(this, combo,
+                "Selecciona dispositivo de salida", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (res != JOptionPane.OK_OPTION) return;
+        mixerSalida = dispositivos.get(combo.getSelectedIndex());
+        iniciarReproduccionAudio();
+    }
+
+    public void reproducirAudio(String base64) {
+        byte[] datos = Base64.getDecoder().decode(base64);
+        colaAudio.offer(datos);
+    }
+
     // ── SALIR ─────────────────────────────────────────────────────────────────
     private void salir() {
         if (timerCamara != null) timerCamara.stop();
         if (camara != null) camara.detener();
+        micActivo = false;
+        if (microfono != null) microfono.detener();
+        if (hiloReproduccion != null) hiloReproduccion.interrupt();
+        if (lineaAudio != null) { lineaAudio.drain(); lineaAudio.close(); }
         MensajeSocket msg = new MensajeSocket();
         msg.setType(MensajeSocket.LEAVE_ROOM);
         msg.setRoomCode(roomCode);

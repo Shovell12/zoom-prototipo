@@ -4,9 +4,35 @@ import uni.pe.cliente.ConexionCliente;
 import uni.pe.servidor.Servidor;
 
 import javax.swing.*;
+import java.io.File;
+import java.io.PrintStream;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class App {
     public static void main(String[] args) {
+        // En Windows, el JAR se auto-relanza añadiendo los flags necesarios para
+        // bridj (backend nativo de webcam-capture) bajo Java 9+ con JPMS.
+        if (isWindows() && System.getProperty("app.relaunched") == null) {
+            if (relaunch(args)) return;
+        }
+
+        // HiDPI — debe establecerse antes de que AWT inicialice
+        System.setProperty("sun.java2d.uiScale", "true");
+
+        // Salida de consola en UTF-8 (evita caracteres corruptos en Windows CMD)
+        try {
+            System.setOut(new PrintStream(System.out, true, "UTF-8"));
+            System.setErr(new PrintStream(System.err, true, "UTF-8"));
+        } catch (Exception ignored) {}
+
+        // Look and Feel nativo del sistema operativo
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception ignored) {}
+
         String[] opciones = {"Servidor", "Cliente"};
         int eleccion = JOptionPane.showOptionDialog(
                 null,
@@ -31,6 +57,45 @@ public class App {
                 SwingUtilities.invokeLater(() -> new ConexionCliente(ip.trim()).iniciar());
             }
             default -> System.exit(0);
+        }
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase().contains("win");
+    }
+
+    /**
+     * Relanza el JAR actual añadiendo los flags de JVM que bridj necesita bajo JPMS
+     * (Java 9+). Detecta automáticamente el ejecutable java/javaw con el que se
+     * inició el proceso para respetar el modo consola vs. sin consola.
+     * Retorna true si el relanzamiento fue exitoso (el llamador debe salir).
+     */
+    private static boolean relaunch(String[] args) {
+        try {
+            URI uri = App.class.getProtectionDomain().getCodeSource().getLocation().toURI();
+            File jar = new File(uri);
+            if (!jar.getName().endsWith(".jar")) return false; // IDE (clases sueltas)
+
+            String javaExe = ProcessHandle.current().info().command().orElse("java");
+
+            List<String> cmd = new ArrayList<>(List.of(
+                javaExe,
+                "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+                "--add-opens", "java.base/sun.misc=ALL-UNNAMED",
+                "--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED",
+                "--add-opens", "java.base/java.nio=ALL-UNNAMED",
+                "-Dapp.relaunched=true",
+                "-Dfile.encoding=UTF-8",
+                "-Dstdout.encoding=UTF-8",
+                "-Dsun.java2d.uiScale=true",
+                "-jar", jar.getAbsolutePath()
+            ));
+            cmd.addAll(Arrays.asList(args));
+
+            new ProcessBuilder(cmd).inheritIO().start().waitFor();
+            return true;
+        } catch (Exception e) {
+            return false; // si falla el relanzamiento, continúa sin los flags
         }
     }
 }

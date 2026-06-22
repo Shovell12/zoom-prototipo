@@ -58,6 +58,7 @@ public class ManejadorCliente implements Runnable {
             case MensajeSocket.FILE_CHUNK         -> handleFileChunk(msg);
             case MensajeSocket.FILE_END           -> handleFileEnd(msg);
             case MensajeSocket.CAMERA_FRAME        -> handleCamara(msg);
+            case MensajeSocket.AUDIO_FRAME         -> handleAudio(msg);
             case MensajeSocket.FILE_DOWNLOAD_REQUEST -> handleDescarga(msg);
             case MensajeSocket.LEAVE_ROOM         -> handleSalir(msg);
             default -> enviar(error("Tipo de mensaje desconocido: " + msg.getType()));
@@ -265,6 +266,11 @@ public class ManejadorCliente implements Runnable {
     private void handleCamara(MensajeSocket msg) {
         msg.setIdUsuario(idUsuario);
         msg.setNombreUsuario(nombreUsuario);
+        Servidor.broadcast(msg.getRoomCode(), msg, idUsuario);
+    }
+
+    // ── AUDIO ──────────────────────────────────────────────────────────────────
+    private void handleAudio(MensajeSocket msg) {
         Servidor.broadcast(msg.getRoomCode(), msg, idUsuario);
     }
 

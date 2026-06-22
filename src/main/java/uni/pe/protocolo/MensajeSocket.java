@@ -20,6 +20,7 @@ public class MensajeSocket {
     public static final String FILE_NOTIFY          = "FILE_NOTIFY";
     public static final String FILE_DOWNLOAD_REQUEST= "FILE_DOWNLOAD_REQUEST";
     public static final String CAMERA_FRAME        = "CAMERA_FRAME";
+    public static final String AUDIO_FRAME         = "AUDIO_FRAME";
     public static final String LEAVE_ROOM          = "LEAVE_ROOM";
     public static final String ERROR               = "ERROR";
 
@@ -41,6 +42,7 @@ public class MensajeSocket {
     private int totalChunks;
     private long tamanio;
     private String frameBase64;
+    private String audioBase64;
     private String sentAt;
     private boolean aceptado;
 
@@ -81,6 +83,8 @@ public class MensajeSocket {
     public void setTamanio(long tamanio) { this.tamanio = tamanio; }
     public String getFrameBase64() { return frameBase64; }
     public void setFrameBase64(String frameBase64) { this.frameBase64 = frameBase64; }
+    public String getAudioBase64() { return audioBase64; }
+    public void setAudioBase64(String audioBase64) { this.audioBase64 = audioBase64; }
     public String getSentAt() { return sentAt; }
     public void setSentAt(String sentAt) { this.sentAt = sentAt; }
     public boolean isAceptado() { return aceptado; }
