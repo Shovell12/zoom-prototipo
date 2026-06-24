@@ -22,53 +22,80 @@ public class VentanaPrincipal extends JFrame {
 
     private void iniciarUI() {
         setTitle("Zoom Prototipo — Inicio");
-        setSize(420, 320);
+        setSize(400, 480); // Ventana un poco más alta y espaciosa
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setResizable(false);
 
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 30));
+        panel.setBorder(BorderFactory.createEmptyBorder(25, 35, 25, 35));
         GridBagConstraints g = new GridBagConstraints();
         g.fill = GridBagConstraints.HORIZONTAL;
-        g.insets = new Insets(8, 6, 8, 6);
 
-        // Bienvenida
-        lblBienvenida = new JLabel("Bienvenido, " + nombreUsuario, SwingConstants.CENTER);
-        lblBienvenida.setFont(new Font("Arial", Font.BOLD, 16));
-        g.gridx = 0; g.gridy = 0; g.gridwidth = 2;
+        // --- SALUDO ---
+        lblBienvenida = new JLabel("Hola, " + nombreUsuario, SwingConstants.CENTER);
+        lblBienvenida.setFont(new Font("SansSerif", Font.BOLD, 24));
+        g.gridx = 0; g.gridy = 0;
+        g.insets = new Insets(0, 0, 35, 0); // Espacio grande debajo del título
         panel.add(lblBienvenida, g);
 
-        // Separador
+        // --- SECCIÓN 1: CREAR SALA ---
+        JLabel lblCrear = new JLabel("Nueva Reunión");
+        lblCrear.setFont(new Font("SansSerif", Font.BOLD, 13));
+        lblCrear.setForeground(new Color(150, 150, 150)); // Gris sutil
         g.gridy = 1;
-        panel.add(new JSeparator(), g);
+        g.insets = new Insets(0, 0, 5, 0);
+        panel.add(lblCrear, g);
 
-        // Nombre de sala
-        g.gridwidth = 1; g.gridy = 2; g.gridx = 0;
-        panel.add(new JLabel("Nombre sala:"), g);
         txtNombreSala = new JTextField("Mi sala");
-        g.gridx = 1;
+        txtNombreSala.putClientProperty("JTextField.placeholderText", "Nombre de la sala");
+        txtNombreSala.putClientProperty("FlatLaf.style", "showClearButton: true");
+        txtNombreSala.setPreferredSize(new Dimension(0, 40)); // Altura moderna
+        txtNombreSala.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        g.gridy = 2;
+        g.insets = new Insets(0, 0, 10, 0);
         panel.add(txtNombreSala, g);
 
-        // Botón crear sala
-        JButton btnCrear = new JButton("Crear sala");
-        g.gridy = 3; g.gridx = 0; g.gridwidth = 2;
+        JButton btnCrear = new JButton("Crear Sala");
+        btnCrear.setBackground(new Color(14, 113, 235)); // Azul Zoom
+        btnCrear.setForeground(Color.WHITE);
+        btnCrear.setFont(new Font("SansSerif", Font.BOLD, 14));
+        btnCrear.setPreferredSize(new Dimension(0, 40));
+        btnCrear.putClientProperty("JButton.buttonType", "roundRect");
+        btnCrear.setFocusPainted(false);
+        btnCrear.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        g.gridy = 3;
+        g.insets = new Insets(0, 0, 30, 0); // Espacio grande para separar de la siguiente sección
         panel.add(btnCrear, g);
 
-        // Separador
+        // --- SECCIÓN 2: UNIRSE A SALA ---
+        JLabel lblUnir = new JLabel("Unirse a una Reunión");
+        lblUnir.setFont(new Font("SansSerif", Font.BOLD, 13));
+        lblUnir.setForeground(new Color(150, 150, 150));
         g.gridy = 4;
-        panel.add(new JSeparator(), g);
+        g.insets = new Insets(0, 0, 5, 0);
+        panel.add(lblUnir, g);
 
-        // Código sala
-        g.gridwidth = 1; g.gridy = 5; g.gridx = 0;
-        panel.add(new JLabel("Código sala:"), g);
         txtCodigoSala = new JTextField();
-        g.gridx = 1;
+        txtCodigoSala.putClientProperty("JTextField.placeholderText", "Ingresa el código de la sala");
+        txtCodigoSala.putClientProperty("FlatLaf.style", "showClearButton: true");
+        txtCodigoSala.setPreferredSize(new Dimension(0, 40));
+        txtCodigoSala.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        g.gridy = 5;
+        g.insets = new Insets(0, 0, 10, 0);
         panel.add(txtCodigoSala, g);
 
-        // Botón unirse
-        JButton btnUnirse = new JButton("Unirse a sala");
-        g.gridy = 6; g.gridx = 0; g.gridwidth = 2;
+        JButton btnUnirse = new JButton("Unirse");
+        // Color oscuro y neutro para diferenciarlo de la acción principal de crear
+        btnUnirse.setBackground(new Color(60, 60, 60));
+        btnUnirse.setForeground(Color.WHITE);
+        btnUnirse.setFont(new Font("SansSerif", Font.BOLD, 14));
+        btnUnirse.setPreferredSize(new Dimension(0, 40));
+        btnUnirse.putClientProperty("JButton.buttonType", "roundRect");
+        btnUnirse.setFocusPainted(false);
+        btnUnirse.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        g.gridy = 6;
+        g.insets = new Insets(0, 0, 0, 0);
         panel.add(btnUnirse, g);
 
         add(panel);
@@ -76,6 +103,9 @@ public class VentanaPrincipal extends JFrame {
         // Acciones
         btnCrear.addActionListener(e -> crearSala());
         btnUnirse.addActionListener(e -> unirseASala());
+
+        // Atajo: presionar Enter en el código te une automáticamente
+        txtCodigoSala.addActionListener(e -> unirseASala());
     }
 
     private void crearSala() {

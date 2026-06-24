@@ -531,50 +531,6 @@ public class VentanaReunion extends JFrame {
         lbl.setOpaque(true);
         return lbl;
     }
-    // ── UTILIDAD PARA BOTONES ESTILO ZOOM (VERSIÓN NATIVA) ────────────────────
-
-    // 1. Dibuja el emoji como una imagen interna para evitar bugs de HTML
-    private Icon crearIconoEmoji(String emoji, int size) {
-        BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2 = img.createGraphics();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setFont(new Font("SansSerif", Font.PLAIN, size - 4));
-        FontMetrics fm = g2.getFontMetrics();
-        int x = (size - fm.stringWidth(emoji)) / 2;
-        int y = ((size - fm.getHeight()) / 2) + fm.getAscent();
-        g2.drawString(emoji, x, y);
-        g2.dispose();
-        return new ImageIcon(img);
-    }
-
-    // 2. Crea el botón usando posicionamiento nativo de Swing
-    private JButton crearBotonZoom(String texto, String icono) {
-        JButton btn = new JButton(texto);
-        btn.setIcon(crearIconoEmoji(icono, 24)); // Tamaño del emoji
-
-        // Magia de Swing: Ícono arriba, texto abajo, centrados
-        btn.setVerticalTextPosition(SwingConstants.BOTTOM);
-        btn.setHorizontalTextPosition(SwingConstants.CENTER);
-        btn.setIconTextGap(4); // Espacio entre el emoji y las letras
-
-        // Estética FlatLaf
-        btn.putClientProperty("JButton.buttonType", "borderless");
-        btn.setForeground(new Color(220, 220, 220));
-        btn.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        // Elimina el recuadro gris feo al hacer clic
-        btn.setFocusPainted(false);
-        btn.setFocusable(false);
-
-        return btn;
-    }
-
-    // 3. Actualiza el texto y la imagen de forma limpia
-    private void actualizarBotonZoom(JButton btn, String texto, String icono) {
-        btn.setText(texto);
-        btn.setIcon(crearIconoEmoji(icono, 24));
-    }
     // ── CARGA DE ÍCONOS DESDE IMÁGENES PNG ──
     private Icon cargarIcono(String nombreArchivo) {
         try {

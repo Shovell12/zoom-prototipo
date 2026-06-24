@@ -19,50 +19,91 @@ public class VentanaLogin extends JFrame {
     }
 
     private void iniciarUI() {
-        setTitle("Zoom Prototipo — Login");
-        setSize(400, 300);
+        setTitle("Zoom Prototipo");
+        setSize(350, 450); // Diseño más vertical y moderno
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setResizable(false);
 
+        // Panel principal con márgenes amplios
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 30));
+        panel.setBorder(BorderFactory.createEmptyBorder(30, 40, 30, 40));
         GridBagConstraints g = new GridBagConstraints();
         g.fill = GridBagConstraints.HORIZONTAL;
-        g.insets = new Insets(6, 6, 6, 6);
 
-        // Título
-        JLabel titulo = new JLabel("Iniciar Sesión", SwingConstants.CENTER);
-        titulo.setFont(new Font("Arial", Font.BOLD, 18));
-        g.gridx = 0; g.gridy = 0; g.gridwidth = 2;
+        // --- 1. TÍTULO / LOGO ---
+        JLabel titulo = new JLabel("ZOOM", SwingConstants.CENTER);
+        titulo.setFont(new Font("SansSerif", Font.BOLD, 42));
+        titulo.setForeground(new Color(14, 113, 235)); // Azul oficial
+        g.gridx = 0; g.gridy = 0;
+        g.insets = new Insets(0, 0, 5, 0);
         panel.add(titulo, g);
 
-        // Correo
-        g.gridwidth = 1; g.gridy = 1; g.gridx = 0;
-        panel.add(new JLabel("Correo:"), g);
+        JLabel subtitulo = new JLabel("Prototipo Universitario", SwingConstants.CENTER);
+        subtitulo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        subtitulo.setForeground(Color.GRAY);
+        g.gridy = 1;
+        g.insets = new Insets(0, 0, 30, 0); // Espacio grande antes del formulario
+        panel.add(subtitulo, g);
+
+        // --- 2. CAMPO DE CORREO ---
+        // --- 2. CAMPO DE CORREO ---
         txtCorreo = new JTextField();
-        g.gridx = 1;
+        txtCorreo.putClientProperty("JTextField.placeholderText", "Correo electrónico");
+
+        // Forma infalible de mostrar la "X" para limpiar el texto
+        txtCorreo.putClientProperty("FlatLaf.style", "showClearButton: true");
+
+        txtCorreo.setPreferredSize(new Dimension(250, 40));
+        // ... (el resto queda igual)
+        txtCorreo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        g.gridy = 2;
+        g.insets = new Insets(0, 0, 15, 0);
         panel.add(txtCorreo, g);
 
-        // Contraseña
-        g.gridy = 2; g.gridx = 0;
-        panel.add(new JLabel("Contraseña:"), g);
+        // --- 3. CAMPO DE CONTRASEÑA ---
         txtPassword = new JPasswordField();
-        g.gridx = 1;
+        txtPassword.putClientProperty("JTextField.placeholderText", "Contraseña");
+
+        // Forma infalible de mostrar el "Ojo" para revelar la contraseña
+        txtPassword.putClientProperty("FlatLaf.style", "showRevealButton: true");
+
+        txtPassword.setPreferredSize(new Dimension(250, 40));
+        // ... (el resto queda igual)
+        txtPassword.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        g.gridy = 3;
+        g.insets = new Insets(0, 0, 25, 0);
         panel.add(txtPassword, g);
 
-        // Botones
+        // --- 4. BOTÓN PRINCIPAL (INGRESAR) ---
         btnLogin = new JButton("Ingresar");
-        btnRegistrar = new JButton("Registrarse");
-        g.gridy = 3; g.gridx = 0;
+        btnLogin.setBackground(new Color(14, 113, 235)); // Azul brillante
+        btnLogin.setForeground(Color.WHITE);
+        btnLogin.setFont(new Font("SansSerif", Font.BOLD, 14));
+        btnLogin.setPreferredSize(new Dimension(250, 40));
+        btnLogin.setFocusPainted(false);
+        btnLogin.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        // Bordes más redondeados
+        btnLogin.putClientProperty("JButton.buttonType", "roundRect");
+        g.gridy = 4;
+        g.insets = new Insets(0, 0, 10, 0);
         panel.add(btnLogin, g);
-        g.gridx = 1;
+
+        // --- 5. BOTÓN SECUNDARIO (REGISTRO) ---
+        btnRegistrar = new JButton("¿No tienes cuenta? Regístrate");
+        btnRegistrar.putClientProperty("JButton.buttonType", "borderless"); // Sin fondo ni borde
+        btnRegistrar.setForeground(new Color(14, 113, 235));
+        btnRegistrar.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        g.gridy = 5;
+        g.insets = new Insets(0, 0, 15, 0);
         panel.add(btnRegistrar, g);
 
-        // Mensaje
+        // --- 6. MENSAJE DE ERROR ---
         lblMensaje = new JLabel("", SwingConstants.CENTER);
-        lblMensaje.setForeground(Color.RED);
-        g.gridy = 4; g.gridx = 0; g.gridwidth = 2;
+        lblMensaje.setForeground(new Color(224, 40, 40)); // Rojo alerta
+        lblMensaje.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        g.gridy = 6;
+        g.insets = new Insets(0, 0, 0, 0);
         panel.add(lblMensaje, g);
 
         add(panel);
@@ -70,9 +111,8 @@ public class VentanaLogin extends JFrame {
         // Acciones
         btnLogin.addActionListener(e -> login());
         btnRegistrar.addActionListener(e -> registrar());
-        txtPassword.addActionListener(e -> login());
+        txtPassword.addActionListener(e -> login()); // Permite ingresar con 'Enter'
     }
-
     private void login() {
         String correo = txtCorreo.getText().trim();
         String pass   = new String(txtPassword.getPassword());

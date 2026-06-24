@@ -29,26 +29,15 @@ public class App {
         } catch (Exception ignored) {}
 
         // Look and Feel moderno con FlatLaf (Tema Oscuro)
+        // Look and Feel moderno con FlatLaf (Tema Oscuro)
         try {
             com.formdev.flatlaf.FlatDarkLaf.setup();
 
-            // --- PERSONALIZACIÓN ESTILO ZOOM ---
-            // El azul oficial de Zoom para acentos y elementos enfocados
-            java.awt.Color azulZoom = new java.awt.Color(14, 113, 235);
-
-            UIManager.put("Component.accentColor", azulZoom);
-            UIManager.put("Button.focusedBorderColor", azulZoom);
-            UIManager.put("Component.focusWidth", 1);
-
-            // Redondear los botones y cajas de texto de forma sutil y moderna
+            // Personalización de colores estilo Zoom
+            UIManager.put("Component.accentColor", new java.awt.Color(14, 113, 235));
             UIManager.put("Button.arc", 8);
             UIManager.put("Component.arc", 8);
             UIManager.put("TextComponent.arc", 8);
-
-            // Estilo específico para las barras de scroll
-            UIManager.put("ScrollBar.thumbArc", 999);
-            UIManager.put("ScrollBar.thumbInsets", new java.awt.Insets(2, 2, 2, 2));
-
         } catch (Exception e) {
             System.err.println("No se pudo aplicar el tema FlatLaf: " + e.getMessage());
         }
