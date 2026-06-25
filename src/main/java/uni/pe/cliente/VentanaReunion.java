@@ -1,65 +1,39 @@
 package uni.pe.cliente;
 
 import uni.pe.protocolo.MensajeSocket;
-
-import javax.sound.sampled.*;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.*;
-import java.nio.file.Files;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.io.File;
+import java.util.*;
+import javax.imageio.ImageIO;
 
-public class VentanaReunion extends JFrame {
-
+public class VentanaReunion extends JFrame implements MensajeListener {
     private final ConexionCliente conexion;
+    private final ReunionManager manager = new ReunionManager();
     private final int idUsuario;
-    private final String nombreUsuario;
     private final String roomCode;
     private final boolean esHost;
 
-    // Chat
+    // Componentes UI
     private JTextArea areaChat;
     private JTextField txtMensaje;
-
-    // Participantes en espera (solo host)
-    private DefaultListModel<String> modeloEspera;
-    private JList<String> listaEspera;
-    private final Map<String, Integer> mapaEspera = new HashMap<>();
-
-    // Cámara
+    private DefaultListModel<String> modeloEspera, modeloArchivos;
+    private JList<String> listaEspera, listaArchivos;
+    private JPanel panelCamaras;
     private JLabel lblCamaraLocal;
-    private JPanel panelCamaras; // Panel contenedor que crecerá dinámicamente
-    private final Map<String, JLabel> camarasRemotas = new HashMap<>(); // Diccionario de usuarios y sus cámaras
+
+    // Estados
+    private final Map<String, Integer> mapaEspera = new HashMap<>();
+    private final Map<String, JLabel> camarasRemotas = new HashMap<>();
     private javax.swing.Timer timerCamara;
-    private uni.pe.cliente.CamaraCaptura camara;
 
-    // Micrófono (captura)
-    private MicrofoneCaptura microfono;
-    private Thread hiloMicrofono;
-    private volatile boolean micActivo = false;
-
-    // Audio (reproducción)
-    private SourceDataLine lineaAudio;
-    private Thread hiloReproduccion;
-    private final LinkedBlockingQueue<byte[]> colaAudio = new LinkedBlockingQueue<>();
-    private Mixer.Info mixerSalida = null;
-
-    // Archivos
-    private JList<String> listaArchivos;
-    private DefaultListModel<String> modeloArchivos;
-
-    public VentanaReunion(ConexionCliente conexion, int idUsuario,
-                          String nombreUsuario, String roomCode, boolean esHost) {
+    public VentanaReunion(ConexionCliente conexion, int idUsuario, String nombre, String roomCode, boolean esHost) {
         this.conexion = conexion;
         this.idUsuario = idUsuario;
-        this.nombreUsuario = nombreUsuario;
         this.roomCode = roomCode;
         this.esHost = esHost;
+        this.conexion.agregarListener(this); // Registro al Observer
         iniciarUI();
     }
 
@@ -69,527 +43,158 @@ public class VentanaReunion extends JFrame {
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        // Panel principal
         JPanel panelPrincipal = new JPanel(new BorderLayout(5, 5));
         panelPrincipal.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // ── PANEL IZQUIERDO: CÁMARAS + ESPERA ──
+        // 1. PANEL IZQUIERDO: CÁMARAS + ESPERA
         JPanel panelIzq = new JPanel(new BorderLayout(10, 10));
-        panelIzq.setPreferredSize(new Dimension(300, 0)); // Un poco más ancho
-
-        lblCamaraLocal = camaraLabel("Tu cámara");
-
-        // Usamos un contenedor auxiliar y GridLayout de 1 columna para apilar las cámaras hacia abajo
-        JPanel contenedorCamaras = new JPanel(new BorderLayout());
+        panelIzq.setPreferredSize(new Dimension(300, 0));
         panelCamaras = new JPanel(new GridLayout(0, 1, 0, 10));
+        lblCamaraLocal = camaraLabel("Tu cámara");
         panelCamaras.add(lblCamaraLocal);
-        contenedorCamaras.add(panelCamaras, BorderLayout.NORTH);
+        panelIzq.add(new JScrollPane(panelCamaras), BorderLayout.CENTER);
 
-        JScrollPane scrollCamaras = new JScrollPane(contenedorCamaras);
-        scrollCamaras.setBorder(BorderFactory.createEmptyBorder());
-        scrollCamaras.getVerticalScrollBar().setUnitIncrement(16); // Desplazamiento suave con el ratón
-        panelIzq.add(scrollCamaras, BorderLayout.CENTER);
-
-        // Panel sala de espera (solo host)
         if (esHost) {
             modeloEspera = new DefaultListModel<>();
-            listaEspera  = new JList<>(modeloEspera);
-            JPanel panelEspera = new JPanel(new BorderLayout(3, 3));
+            listaEspera = new JList<>(modeloEspera);
+            JPanel panelEspera = new JPanel(new BorderLayout());
             panelEspera.setBorder(BorderFactory.createTitledBorder("Sala de espera"));
-            panelEspera.setPreferredSize(new Dimension(280, 160));
             panelEspera.add(new JScrollPane(listaEspera), BorderLayout.CENTER);
-
-            JPanel botonesEspera = new JPanel(new GridLayout(1, 2, 4, 0));
-            JButton btnAceptar  = new JButton("Aceptar");
-            JButton btnRechazar = new JButton("Rechazar");
-            botonesEspera.add(btnAceptar);
-            botonesEspera.add(btnRechazar);
-            panelEspera.add(botonesEspera, BorderLayout.SOUTH);
+            JButton btnAceptar = new JButton("Aceptar");
+            btnAceptar.addActionListener(e -> gestionarEspera(true));
+            panelEspera.add(btnAceptar, BorderLayout.SOUTH);
             panelIzq.add(panelEspera, BorderLayout.SOUTH);
-
-            btnAceptar.addActionListener(e -> admitir(true));
-            btnRechazar.addActionListener(e -> admitir(false));
         }
 
-        // ── Panel central: chat ──
+        // 2. PANEL CENTRAL: CHAT
         JPanel panelChat = new JPanel(new BorderLayout(5, 5));
-        panelChat.setBorder(BorderFactory.createTitledBorder("Chat — " + roomCode));
-
         areaChat = new JTextArea();
         areaChat.setEditable(false);
-        areaChat.setLineWrap(true);
-        areaChat.setWrapStyleWord(true);
-        panelChat.add(new JScrollPane(areaChat), BorderLayout.CENTER);
-
-        JPanel panelEnvio = new JPanel(new BorderLayout(4, 0));
         txtMensaje = new JTextField();
         JButton btnEnviar = new JButton("Enviar");
-        panelEnvio.add(txtMensaje, BorderLayout.CENTER);
-        panelEnvio.add(btnEnviar, BorderLayout.EAST);
-        panelChat.add(panelEnvio, BorderLayout.SOUTH);
+        btnEnviar.addActionListener(e -> enviarMensaje());
+        JPanel pEnvio = new JPanel(new BorderLayout());
+        pEnvio.add(txtMensaje, BorderLayout.CENTER);
+        pEnvio.add(btnEnviar, BorderLayout.EAST);
+        panelChat.add(new JScrollPane(areaChat), BorderLayout.CENTER);
+        panelChat.add(pEnvio, BorderLayout.SOUTH);
 
-        // ── Panel derecho: archivos compartidos ──
-        JPanel panelDer = new JPanel(new BorderLayout(5, 5));
-        panelDer.setPreferredSize(new Dimension(200, 0));
-
+        // 3. PANEL DERECHO: ARCHIVOS
+        JPanel panelDer = new JPanel(new BorderLayout());
         modeloArchivos = new DefaultListModel<>();
-        listaArchivos  = new JList<>(modeloArchivos);
-        JPanel panelArchivos = new JPanel(new BorderLayout(3, 3));
-        panelArchivos.setBorder(BorderFactory.createTitledBorder("Archivos compartidos"));
-        panelArchivos.add(new JScrollPane(listaArchivos), BorderLayout.CENTER);
-
-        listaArchivos.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (e.getClickCount() == 2) descargarArchivo();
-            }
-        });
-
+        listaArchivos = new JList<>(modeloArchivos);
         JButton btnEnviarArchivo = new JButton("Enviar archivo");
-        panelArchivos.add(btnEnviarArchivo, BorderLayout.SOUTH);
-        panelDer.add(panelArchivos, BorderLayout.CENTER); // Ocupará todo el espacio vertical en la derecha
+        btnEnviarArchivo.addActionListener(e -> enviarArchivo());
+        panelDer.add(new JScrollPane(listaArchivos), BorderLayout.CENTER);
+        panelDer.add(btnEnviarArchivo, BorderLayout.SOUTH);
 
-        // ── BARRA DE CONTROLES INFERIOR HORIZONTAL (ESTILO ZOOM CLÁSICO) ──
-        JPanel barraControlesInferior = new JPanel(new BorderLayout());
-        barraControlesInferior.setBackground(new Color(26, 26, 26)); // Gris muy oscuro, estilo Zoom
-        barraControlesInferior.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        // 4. CONTROLES INFERIORES
+        JPanel panelControles = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        JButton btnCamara = new JButton("Iniciar Video");
+        btnCamara.addActionListener(e -> toggleCamara(btnCamara));
+        panelControles.add(btnCamara);
 
-        // 1. Panel central para alinear los controles multimedia al medio
-        JPanel panelCentroControles = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
-        panelCentroControles.setOpaque(false); // Transparente para que se vea el fondo oscuro
-
-        // Inicializamos los botones en estado "Apagado" para coincidir con la realidad
-        JButton btnMicrofono   = crearBotonZoom("Reactivar", cargarIcono("mic_off.png"));
-        JButton btnCamara      = crearBotonZoom("Iniciar Video", cargarIcono("cam_off.png"));
-        JButton btnSalidaAudio = crearBotonZoom("Audio", cargarIcono("audio.png"));
-
-        panelCentroControles.add(btnMicrofono);
-        panelCentroControles.add(btnCamara);
-        panelCentroControles.add(btnSalidaAudio);
-
-        // 2. Panel derecho exclusivo para el botón de salir
-        JPanel panelDerechoControles = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 5));
-        panelDerechoControles.setOpaque(false);
-
-        JButton btnSalir = new JButton("Finalizar");
-        btnSalir.setBackground(new Color(228, 40, 40)); // Rojo Zoom
-        btnSalir.setForeground(Color.WHITE);
-        btnSalir.setFont(new Font("SansSerif", Font.BOLD, 12));
-        btnSalir.putClientProperty("JButton.buttonType", "roundRect"); // Bordes redondeados
-        btnSalir.setBorder(BorderFactory.createEmptyBorder(6, 16, 6, 16)); // Relleno interno
-
-        panelDerechoControles.add(btnSalir);
-
-        // Ensamblar la barra
-        barraControlesInferior.add(panelCentroControles, BorderLayout.CENTER);
-        barraControlesInferior.add(panelDerechoControles, BorderLayout.EAST);
-
-        // ── ENSAMBLADO FINAL EN EL PANEL PRINCIPAL ──
-        panelPrincipal.add(panelIzq,               BorderLayout.WEST);
-        panelPrincipal.add(panelChat,              BorderLayout.CENTER);
-        panelPrincipal.add(panelDer,               BorderLayout.EAST);
-        panelPrincipal.add(barraControlesInferior, BorderLayout.SOUTH); // Posicionamiento en el fondo
+        panelPrincipal.add(panelIzq, BorderLayout.WEST);
+        panelPrincipal.add(panelChat, BorderLayout.CENTER);
+        panelPrincipal.add(panelDer, BorderLayout.EAST);
+        panelPrincipal.add(panelControles, BorderLayout.SOUTH);
 
         add(panelPrincipal);
+        setVisible(true);
+    }
 
-        // Acciones
-        btnEnviar.addActionListener(e -> enviarMensaje());
-        txtMensaje.addActionListener(e -> enviarMensaje());
-        btnEnviarArchivo.addActionListener(e -> enviarArchivo());
-        btnCamara.addActionListener(e -> toggleCamara(btnCamara));
-        btnMicrofono.addActionListener(e -> toggleMicrofono(btnMicrofono));
-        btnSalidaAudio.addActionListener(e -> seleccionarSalidaAudio());
-        btnSalir.addActionListener(e -> salir());
-
-        iniciarReproduccionAudio();
-
-        addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent e) { salir(); }
+    // --- LÓGICA DE EVENTOS (Observer) ---
+    @Override
+    public void onMensajeRecibido(MensajeSocket msg) {
+        SwingUtilities.invokeLater(() -> {
+            switch (msg.getType()) {
+                case MensajeSocket.CHAT_MESSAGE -> areaChat.append(msg.getNombreUsuario() + ": " + msg.getContenido() + "\n");
+                case MensajeSocket.CAMERA_FRAME -> mostrarFrameRemoto(msg.getNombreUsuario(), msg.getFrameBase64());
+                case MensajeSocket.WAITING_ROOM_UPDATE -> agregarAEspera(msg.getIdUsuario(), msg.getNombreUsuario());
+                case MensajeSocket.FILE_NOTIFY -> modeloArchivos.addElement(msg.getNombreArchivo());
+            }
         });
     }
 
-    // ── CHAT ──────────────────────────────────────────────────────────────────
+    // --- ACCIONES ---
     private void enviarMensaje() {
         String texto = txtMensaje.getText().trim();
         if (texto.isEmpty()) return;
-        MensajeSocket msg = new MensajeSocket();
-        msg.setType(MensajeSocket.CHAT_MESSAGE);
-        msg.setRoomCode(roomCode);
-        msg.setIdUsuario(idUsuario);
-        msg.setNombreUsuario(nombreUsuario);
-        msg.setContenido(texto);
-        conexion.enviar(msg);
-        agregarMensajeChat("Yo: " + texto);
+        conexion.enviar(new MensajeSocket.Builder(MensajeSocket.CHAT_MESSAGE).sala(roomCode).texto(texto).build());
+        areaChat.append("Yo: " + texto + "\n");
         txtMensaje.setText("");
     }
 
-    public void agregarMensajeChat(String texto) {
-        SwingUtilities.invokeLater(() -> {
-            areaChat.append(texto + "\n");
-            areaChat.setCaretPosition(areaChat.getDocument().getLength());
-        });
-    }
-
-    // ── SALA DE ESPERA ────────────────────────────────────────────────────────
-    public void agregarAEspera(int idUsr, String nombre) {
-        SwingUtilities.invokeLater(() -> {
-            if (modeloEspera != null && !mapaEspera.containsKey(nombre)) {
-                mapaEspera.put(nombre, idUsr);
-                modeloEspera.addElement(nombre);
-            }
-        });
-    }
-
-    private void admitir(boolean aceptar) {
-        String seleccionado = listaEspera.getSelectedValue();
-        if (seleccionado == null) {
-            JOptionPane.showMessageDialog(this, "Selecciona un usuario de la lista.");
-            return;
-        }
-        int idUsr = mapaEspera.get(seleccionado);
-        MensajeSocket msg = new MensajeSocket();
-        msg.setType(MensajeSocket.ADMIT_USER);
-        msg.setRoomCode(roomCode);
-        msg.setIdUsuario(idUsr);
-        msg.setAceptado(aceptar);
-        conexion.enviar(msg);
-        mapaEspera.remove(seleccionado);
-        modeloEspera.removeElement(seleccionado);
-    }
-
-    // ── ARCHIVOS ──────────────────────────────────────────────────────────────
-    private void enviarArchivo() {
-        JFileChooser chooser = new JFileChooser();
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
-        File archivo = chooser.getSelectedFile();
-        new Thread(() -> {
-            try {
-                byte[] datos = Files.readAllBytes(archivo.toPath());
-                int CHUNK = 4096;
-                int total = (int) Math.ceil((double) datos.length / CHUNK);
-
-                MensajeSocket start = new MensajeSocket();
-                start.setType(MensajeSocket.FILE_START);
-                start.setNombreArchivo(archivo.getName());
-                start.setTamanio(datos.length);
-                start.setRoomCode(roomCode);
-                conexion.enviar(start);
-
-                for (int i = 0; i < total; i++) {
-                    int desde = i * CHUNK;
-                    int hasta = Math.min(desde + CHUNK, datos.length);
-                    byte[] chunk = new byte[hasta - desde];
-                    System.arraycopy(datos, desde, chunk, 0, chunk.length);
-
-                    MensajeSocket chunkMsg = new MensajeSocket();
-                    chunkMsg.setType(MensajeSocket.FILE_CHUNK);
-                    chunkMsg.setNombreArchivo(archivo.getName());
-                    chunkMsg.setChunkBase64(Base64.getEncoder().encodeToString(chunk));
-                    chunkMsg.setChunkIndex(i);
-                    chunkMsg.setTotalChunks(total);
-                    chunkMsg.setRoomCode(roomCode);
-                    conexion.enviar(chunkMsg);
-                }
-
-                MensajeSocket end = new MensajeSocket();
-                end.setType(MensajeSocket.FILE_END);
-                end.setNombreArchivo(archivo.getName());
-                end.setRoomCode(roomCode);
-                conexion.enviar(end);
-
-                SwingUtilities.invokeLater(() ->
-                        agregarMensajeChat("✓ Archivo enviado: " + archivo.getName()));
-            } catch (IOException e) {
-                JOptionPane.showMessageDialog(this, "Error al enviar archivo: " + e.getMessage());
-            }
-        }).start();
-    }
-
-    public void agregarArchivo(String nombre) {
-        SwingUtilities.invokeLater(() -> modeloArchivos.addElement(nombre));
-    }
-
-    private void descargarArchivo() {
-        String nombre = listaArchivos.getSelectedValue();
-        if (nombre == null) return;
-        MensajeSocket msg = new MensajeSocket();
-        msg.setType(MensajeSocket.FILE_DOWNLOAD_REQUEST);
-        msg.setNombreArchivo(nombre);
-        msg.setRoomCode(roomCode);
-        conexion.enviar(msg);
-    }
-
-    public void guardarDescarga(String nombre, byte[] datos) {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setSelectedFile(new java.io.File(nombre));
-        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
-        try {
-            Files.write(chooser.getSelectedFile().toPath(), datos);
-            agregarMensajeChat("Archivo descargado: " + nombre);
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Error al guardar: " + e.getMessage());
-        }
-    }
-
-    // ── CÁMARA ────────────────────────────────────────────────────────────────
     private void toggleCamara(JButton btn) {
         if (timerCamara == null || !timerCamara.isRunning()) {
-            camara = new CamaraCaptura();
-            if (!camara.iniciar()) {
-                JOptionPane.showMessageDialog(this, "No se encontró cámara.");
-                return;
+            if (manager.iniciarCamara()) {
+                timerCamara = new javax.swing.Timer(200, e -> enviarFrame());
+                timerCamara.start();
+                btn.setText("Detener Video");
             }
-            timerCamara = new javax.swing.Timer(200, e -> capturarYEnviar());
-            timerCamara.start();
-            // ¡Cambio aquí! Muestra la opción de detener con un emoji de prohibido o cámara inactiva
-            actualizarBotonZoom(btn, "Detener Video", cargarIcono("cam_on.png")); // Cuando lo enciendes
         } else {
             timerCamara.stop();
-            if (camara != null) camara.detener();
-            lblCamaraLocal.setIcon(null);
-            lblCamaraLocal.setText("Tu cámara");
-            // ¡Cambio aquí! Vuelve al estado inicial
-            actualizarBotonZoom(btn, "Iniciar Video", cargarIcono("cam_off.png")); // Apagado
+            manager.detenerCamara();
+            btn.setText("Iniciar Video");
         }
     }
 
-    private void capturarYEnviar() {
-        if (camara == null) return;
-        BufferedImage frame = camara.capturarFrame();
-        if (frame == null) return;
-
-        // Mostrar local
-        Image scaled = frame.getScaledInstance(
-                lblCamaraLocal.getWidth(), lblCamaraLocal.getHeight(), Image.SCALE_FAST);
-        lblCamaraLocal.setIcon(new ImageIcon(scaled));
-        lblCamaraLocal.setText("");
-
-        // Enviar al servidor
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            javax.imageio.ImageIO.write(frame, "jpg", baos);
-            String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
-            MensajeSocket msg = new MensajeSocket();
-            msg.setType(MensajeSocket.CAMERA_FRAME);
-            msg.setRoomCode(roomCode);
-            msg.setFrameBase64(base64);
-            conexion.enviar(msg);
-        } catch (IOException e) {
-            System.err.println("Error al capturar frame: " + e.getMessage());
-        }
-    }
-
-    public void mostrarFrameRemoto(String usuario, String base64) {
-        SwingUtilities.invokeLater(() -> {
+    private void enviarFrame() {
+        BufferedImage frame = manager.capturarFrame();
+        if (frame != null) {
             try {
-                byte[] datos = java.util.Base64.getDecoder().decode(base64);
-                BufferedImage img = javax.imageio.ImageIO.read(new ByteArrayInputStream(datos));
-                if (img != null) {
-
-                    // 1. Buscamos si ya tenemos una cámara creada para este usuario
-                    JLabel lblRemota = camarasRemotas.get(usuario);
-
-                    // 2. Si no existe, creamos el marco de video y redibujamos la interfaz
-                    if (lblRemota == null) {
-                        lblRemota = camaraLabel("Cámara de " + usuario);
-                        camarasRemotas.put(usuario, lblRemota);
-                        panelCamaras.add(lblRemota);
-                        panelCamaras.revalidate();
-                        panelCamaras.repaint();
-                    }
-
-                    // 3. Dibujamos el frame en su cámara correspondiente
-                    int w = lblRemota.getWidth() > 0 ? lblRemota.getWidth() : 270;
-                    int h = lblRemota.getHeight() > 0 ? lblRemota.getHeight() : 180;
-                    Image scaled = img.getScaledInstance(w, h, Image.SCALE_FAST);
-                    lblRemota.setIcon(new ImageIcon(scaled));
-                    lblRemota.setText(""); // Ocultamos el texto mientras haya video
-                }
-            } catch (IOException e) {
-                System.err.println("Error al mostrar frame remoto: " + e.getMessage());
-            }
-        });
-    }
-
-    // ── MICRÓFONO ─────────────────────────────────────────────────────────────
-    private void toggleMicrofono(JButton btn) {
-        if (!micActivo) {
-            List<javax.sound.sampled.Mixer.Info> mics = MicrofoneCaptura.listarMicrofonos();
-            if (mics.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "No se encontraron micrófonos disponibles.");
-                return;
-            }
-
-            javax.sound.sampled.Mixer.Info seleccionado;
-            if (mics.size() == 1) {
-                seleccionado = mics.get(0);
-            } else {
-                DefaultComboBoxModel<String> modelo = new DefaultComboBoxModel<>();
-                for (javax.sound.sampled.Mixer.Info mi : mics) modelo.addElement(mi.getName());
-                JComboBox<String> combo = new JComboBox<>(modelo);
-                int res = JOptionPane.showConfirmDialog(this, combo,
-                        "Selecciona un micrófono", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-                if (res != JOptionPane.OK_OPTION) return;
-                seleccionado = mics.get(combo.getSelectedIndex());
-            }
-
-            microfono = new MicrofoneCaptura();
-            if (!microfono.iniciar(seleccionado)) {
-                JOptionPane.showMessageDialog(this, "No se pudo abrir el micrófono seleccionado.");
-                return;
-            }
-            micActivo = true;
-            hiloMicrofono = new Thread(() -> {
-                while (micActivo) {
-                    byte[] chunk = microfono.capturarChunk();
-                    if (chunk != null) {
-                        uni.pe.protocolo.MensajeSocket msg = new uni.pe.protocolo.MensajeSocket();
-                        msg.setType(uni.pe.protocolo.MensajeSocket.AUDIO_FRAME);
-                        msg.setRoomCode(roomCode);
-                        msg.setAudioBase64(java.util.Base64.getEncoder().encodeToString(chunk));
-                        conexion.enviar(msg);
-                    }
-                }
-            });
-            hiloMicrofono.setDaemon(true);
-            hiloMicrofono.start();
-
-            // ¡Cambio aquí! Usa la imagen PNG para el micrófono encendido
-            actualizarBotonZoom(btn, "Silenciar", cargarIcono("mic_on.png"));
-        } else {
-            micActivo = false;
-            if (microfono != null) microfono.detener();
-
-            // ¡Cambio aquí! Usa la imagen PNG para el micrófono apagado
-            actualizarBotonZoom(btn, "Reactivar", cargarIcono("mic_off.png"));
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ImageIO.write(frame, "jpg", baos);
+                conexion.enviar(new MensajeSocket.Builder(MensajeSocket.CAMERA_FRAME)
+                        .sala(roomCode)
+                        .texto(Base64.getEncoder().encodeToString(baos.toByteArray()))
+                        .build());
+            } catch (Exception e) { e.printStackTrace(); }
         }
     }
 
-    private void iniciarReproduccionAudio() {
-        if (hiloReproduccion != null) hiloReproduccion.interrupt();
-        if (lineaAudio != null) { lineaAudio.drain(); lineaAudio.close(); }
+    private void enviarArchivo() {
+        JFileChooser chooser = new JFileChooser();
+        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            manager.enviarArchivo(chooser.getSelectedFile(), roomCode, conexion);
+        }
+    }
+
+    private void gestionarEspera(boolean aceptar) {
+        String sel = listaEspera.getSelectedValue();
+        if (sel == null) return;
+        conexion.enviar(new MensajeSocket.Builder(MensajeSocket.ADMIT_USER)
+                .sala(roomCode).usuario(mapaEspera.get(sel), sel).respuesta(aceptar, "").build());
+        modeloEspera.removeElement(sel);
+    }
+
+    private void mostrarFrameRemoto(String u, String base64) {
         try {
-            DataLine.Info info = new DataLine.Info(SourceDataLine.class, MicrofoneCaptura.FORMATO);
-            if (mixerSalida != null) {
-                lineaAudio = (SourceDataLine) AudioSystem.getMixer(mixerSalida).getLine(info);
-            } else {
-                if (!AudioSystem.isLineSupported(info)) {
-                    System.err.println("Reproducción de audio no soportada.");
-                    return;
-                }
-                lineaAudio = (SourceDataLine) AudioSystem.getLine(info);
-            }
-            lineaAudio.open(MicrofoneCaptura.FORMATO);
-            lineaAudio.start();
-            hiloReproduccion = new Thread(() -> {
-                while (!Thread.currentThread().isInterrupted()) {
-                    try {
-                        byte[] datos = colaAudio.take();
-                        lineaAudio.write(datos, 0, datos.length);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                }
-            });
-            hiloReproduccion.setDaemon(true);
-            hiloReproduccion.start();
-        } catch (LineUnavailableException e) {
-            System.err.println("No se pudo iniciar reproductor de audio: " + e.getMessage());
+            byte[] bytes = Base64.getDecoder().decode(base64);
+            BufferedImage img = ImageIO.read(new ByteArrayInputStream(bytes));
+            camarasRemotas.computeIfAbsent(u, k -> {
+                JLabel l = new JLabel("Cámara " + u);
+                panelCamaras.add(l);
+                panelCamaras.revalidate();
+                return l;
+            }).setIcon(new ImageIcon(img));
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private void agregarAEspera(int id, String nombre) {
+        if (esHost && !mapaEspera.containsKey(nombre)) {
+            mapaEspera.put(nombre, id);
+            modeloEspera.addElement(nombre);
         }
     }
 
-    private void seleccionarSalidaAudio() {
-        List<Mixer.Info> dispositivos = MicrofoneCaptura.listarSalidaAudio();
-        if (dispositivos.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No se encontraron dispositivos de salida de audio.");
-            return;
-        }
-        DefaultComboBoxModel<String> modelo = new DefaultComboBoxModel<>();
-        for (Mixer.Info mi : dispositivos) modelo.addElement(mi.getName());
-        JComboBox<String> combo = new JComboBox<>(modelo);
-        if (mixerSalida != null) {
-            for (int i = 0; i < dispositivos.size(); i++) {
-                if (dispositivos.get(i).getName().equals(mixerSalida.getName())) {
-                    combo.setSelectedIndex(i);
-                    break;
-                }
-            }
-        }
-        int res = JOptionPane.showConfirmDialog(this, combo,
-                "Selecciona dispositivo de salida", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-        if (res != JOptionPane.OK_OPTION) return;
-        mixerSalida = dispositivos.get(combo.getSelectedIndex());
-        iniciarReproduccionAudio();
-    }
-
-    public void reproducirAudio(String base64) {
-        byte[] datos = Base64.getDecoder().decode(base64);
-        colaAudio.offer(datos);
-    }
-
-    // ── SALIR ─────────────────────────────────────────────────────────────────
-    private void salir() {
-        if (timerCamara != null) timerCamara.stop();
-        if (camara != null) camara.detener();
-        micActivo = false;
-        if (microfono != null) microfono.detener();
-        if (hiloReproduccion != null) hiloReproduccion.interrupt();
-        if (lineaAudio != null) { lineaAudio.drain(); lineaAudio.close(); }
-        MensajeSocket msg = new MensajeSocket();
-        msg.setType(MensajeSocket.LEAVE_ROOM);
-        msg.setRoomCode(roomCode);
-        conexion.enviar(msg);
-        dispose();
-        conexion.volverAlInicio();
-    }
-
-    // ── UTILIDAD ──────────────────────────────────────────────────────────────
-    private JLabel camaraLabel(String texto) {
-        JLabel lbl = new JLabel(texto, SwingConstants.CENTER);
-        lbl.setPreferredSize(new Dimension(270, 180));
-        lbl.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
-        lbl.setBackground(Color.BLACK);
-        lbl.setForeground(Color.WHITE);
-        lbl.setOpaque(true);
-        return lbl;
-    }
-    // ── CARGA DE ÍCONOS DESDE IMÁGENES PNG ──
-    private Icon cargarIcono(String nombreArchivo) {
-        try {
-            // Busca la imagen en src/main/resources/iconos/
-            java.net.URL url = getClass().getResource("/iconos/" + nombreArchivo);
-            if (url != null) {
-                BufferedImage img = javax.imageio.ImageIO.read(url);
-                // Escala la imagen a 24x24 píxeles para que encaje perfecto en el botón
-                Image scaled = img.getScaledInstance(24, 24, Image.SCALE_SMOOTH);
-                return new ImageIcon(scaled);
-            } else {
-                System.err.println("No se encontró la imagen: " + nombreArchivo);
-            }
-        } catch (Exception e) {
-            System.err.println("Error al cargar " + nombreArchivo + ": " + e.getMessage());
-        }
-        // Devuelve un icono vacío si falla para que no se caiga el programa
-        return new ImageIcon(new BufferedImage(24, 24, BufferedImage.TYPE_INT_ARGB));
-    }
-
-    // ── CONSTRUCTORES DEL BOTÓN ──
-    private JButton crearBotonZoom(String texto, Icon icono) {
-        JButton btn = new JButton(texto, icono);
-        btn.setVerticalTextPosition(SwingConstants.BOTTOM);
-        btn.setHorizontalTextPosition(SwingConstants.CENTER);
-        btn.setIconTextGap(4);
-
-        btn.putClientProperty("JButton.buttonType", "borderless");
-        btn.setForeground(new Color(220, 220, 220));
-        btn.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setFocusPainted(false);
-        btn.setFocusable(false);
-        return btn;
-    }
-
-    private void actualizarBotonZoom(JButton btn, String texto, Icon icono) {
-        btn.setText(texto);
-        btn.setIcon(icono);
+    private JLabel camaraLabel(String text) {
+        JLabel l = new JLabel(text, SwingConstants.CENTER);
+        l.setPreferredSize(new Dimension(270, 180));
+        l.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        l.setOpaque(true);
+        l.setBackground(Color.BLACK);
+        l.setForeground(Color.WHITE);
+        return l;
     }
 }

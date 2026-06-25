@@ -1,92 +1,50 @@
 package uni.pe.protocolo;
 
 public class MensajeSocket {
+    // [Constantes igual que antes]
+    public static final String LOGIN_REQUEST = "LOGIN_REQUEST", LOGIN_RESPONSE = "LOGIN_RESPONSE",
+            REGISTER_REQUEST = "REGISTER_REQUEST", REGISTER_RESPONSE = "REGISTER_RESPONSE",
+            CREATE_ROOM = "CREATE_ROOM", CREATE_ROOM_RESPONSE = "CREATE_ROOM_RESPONSE",
+            JOIN_ROOM_REQUEST = "JOIN_ROOM_REQUEST", WAITING_ROOM_UPDATE = "WAITING_ROOM_UPDATE",
+            ADMIT_USER = "ADMIT_USER", ADMIT_RESPONSE = "ADMIT_RESPONSE", CHAT_MESSAGE = "CHAT_MESSAGE",
+            FILE_START = "FILE_START", FILE_CHUNK = "FILE_CHUNK", FILE_END = "FILE_END",
+            FILE_NOTIFY = "FILE_NOTIFY", FILE_DOWNLOAD_REQUEST = "FILE_DOWNLOAD_REQUEST",
+            CAMERA_FRAME = "CAMERA_FRAME", AUDIO_FRAME = "AUDIO_FRAME", LEAVE_ROOM = "LEAVE_ROOM", ERROR = "ERROR";
 
-    // Tipos de mensaje
-    public static final String LOGIN_REQUEST       = "LOGIN_REQUEST";
-    public static final String LOGIN_RESPONSE      = "LOGIN_RESPONSE";
-    public static final String REGISTER_REQUEST    = "REGISTER_REQUEST";
-    public static final String REGISTER_RESPONSE   = "REGISTER_RESPONSE";
-    public static final String CREATE_ROOM         = "CREATE_ROOM";
-    public static final String CREATE_ROOM_RESPONSE= "CREATE_ROOM_RESPONSE";
-    public static final String JOIN_ROOM_REQUEST   = "JOIN_ROOM_REQUEST";
-    public static final String WAITING_ROOM_UPDATE = "WAITING_ROOM_UPDATE";
-    public static final String ADMIT_USER          = "ADMIT_USER";
-    public static final String ADMIT_RESPONSE      = "ADMIT_RESPONSE";
-    public static final String CHAT_MESSAGE        = "CHAT_MESSAGE";
-    public static final String FILE_START          = "FILE_START";
-    public static final String FILE_CHUNK          = "FILE_CHUNK";
-    public static final String FILE_END            = "FILE_END";
-    public static final String FILE_NOTIFY          = "FILE_NOTIFY";
-    public static final String FILE_DOWNLOAD_REQUEST= "FILE_DOWNLOAD_REQUEST";
-    public static final String CAMERA_FRAME        = "CAMERA_FRAME";
-    public static final String AUDIO_FRAME         = "AUDIO_FRAME";
-    public static final String LEAVE_ROOM          = "LEAVE_ROOM";
-    public static final String ERROR               = "ERROR";
-
-    // Campos del mensaje
-    private String type;
-    private String correo;
-    private String password;
-    private String nombres;
-    private int idUsuario;
-    private String nombreUsuario;
-    private String roomCode;
-    private String roomName;
-    private boolean exito;
-    private String mensaje;
-    private String contenido;
-    private String nombreArchivo;
-    private String chunkBase64;
-    private int chunkIndex;
-    private int totalChunks;
+    private String type, correo, password, nombres, nombreUsuario, roomCode, roomName, mensaje, contenido, nombreArchivo, chunkBase64, frameBase64, audioBase64;
+    private int idUsuario, chunkIndex, totalChunks;
     private long tamanio;
-    private String frameBase64;
-    private String audioBase64;
-    private String sentAt;
-    private boolean aceptado;
+    private boolean exito, aceptado;
 
     public MensajeSocket() {}
 
-    // Getters y Setters
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
-    public String getCorreo() { return correo; }
-    public void setCorreo(String correo) { this.correo = correo; }
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
-    public String getNombres() { return nombres; }
-    public void setNombres(String nombres) { this.nombres = nombres; }
-    public int getIdUsuario() { return idUsuario; }
-    public void setIdUsuario(int idUsuario) { this.idUsuario = idUsuario; }
-    public String getNombreUsuario() { return nombreUsuario; }
-    public void setNombreUsuario(String nombreUsuario) { this.nombreUsuario = nombreUsuario; }
-    public String getRoomCode() { return roomCode; }
-    public void setRoomCode(String roomCode) { this.roomCode = roomCode; }
-    public String getRoomName() { return roomName; }
-    public void setRoomName(String roomName) { this.roomName = roomName; }
-    public boolean isExito() { return exito; }
-    public void setExito(boolean exito) { this.exito = exito; }
-    public String getMensaje() { return mensaje; }
-    public void setMensaje(String mensaje) { this.mensaje = mensaje; }
-    public String getContenido() { return contenido; }
-    public void setContenido(String contenido) { this.contenido = contenido; }
-    public String getNombreArchivo() { return nombreArchivo; }
-    public void setNombreArchivo(String nombreArchivo) { this.nombreArchivo = nombreArchivo; }
-    public String getChunkBase64() { return chunkBase64; }
-    public void setChunkBase64(String chunkBase64) { this.chunkBase64 = chunkBase64; }
-    public int getChunkIndex() { return chunkIndex; }
-    public void setChunkIndex(int chunkIndex) { this.chunkIndex = chunkIndex; }
-    public int getTotalChunks() { return totalChunks; }
-    public void setTotalChunks(int totalChunks) { this.totalChunks = totalChunks; }
-    public long getTamanio() { return tamanio; }
-    public void setTamanio(long tamanio) { this.tamanio = tamanio; }
-    public String getFrameBase64() { return frameBase64; }
-    public void setFrameBase64(String frameBase64) { this.frameBase64 = frameBase64; }
-    public String getAudioBase64() { return audioBase64; }
-    public void setAudioBase64(String audioBase64) { this.audioBase64 = audioBase64; }
-    public String getSentAt() { return sentAt; }
-    public void setSentAt(String sentAt) { this.sentAt = sentAt; }
+    // Getters y Setters estándar
+    public String getType() { return type; } public void setType(String t) { type = t; }
+    public void setCorreo(String c) { correo = c; } public String getCorreo() { return correo; }
+    public void setPassword(String p) { password = p; } public String getPassword() { return password; }
+    public void setNombres(String n) { nombres = n; } public String getNombres() { return nombres; }
+    public void setIdUsuario(int i) { idUsuario = i; } public int getIdUsuario() { return idUsuario; }
+    public void setNombreUsuario(String n) { nombreUsuario = n; } public String getNombreUsuario() { return nombreUsuario; }
+    public void setRoomCode(String r) { roomCode = r; } public String getRoomCode() { return roomCode; }
+    public void setRoomName(String r) { roomName = r; } public String getRoomName() { return roomName; }
+    public void setExito(boolean e) { exito = e; } public boolean isExito() { return exito; }
+    public void setMensaje(String m) { mensaje = m; } public String getMensaje() { return mensaje; }
+    public void setContenido(String c) { contenido = c; } public String getContenido() { return contenido; }
+    public String getNombreArchivo() { return nombreArchivo; } public void setNombreArchivo(String n) { nombreArchivo = n; }
+    public void setChunkBase64(String c) { chunkBase64 = c; } public String getChunkBase64() { return chunkBase64; }
+    public void setChunkIndex(int i) { chunkIndex = i; } public void setTotalChunks(int t) { totalChunks = t; }
+    public void setTamanio(long t) { tamanio = t; } public void setFrameBase64(String f) { frameBase64 = f; }
+    public void setAudioBase64(String a) { audioBase64 = a; } public void setAceptado(boolean a) { aceptado = a; }
     public boolean isAceptado() { return aceptado; }
-    public void setAceptado(boolean aceptado) { this.aceptado = aceptado; }
+
+    public static class Builder {
+        private final MensajeSocket msg;
+        public Builder(String type) { msg = new MensajeSocket(); msg.setType(type); }
+        public Builder usuario(int id, String nombre) { msg.setIdUsuario(id); msg.setNombreUsuario(nombre); return this; }
+        public Builder sala(String code) { msg.setRoomCode(code); return this; }
+        public Builder sala(String code, String name) { msg.setRoomCode(code); msg.setRoomName(name); return this; }
+        public Builder respuesta(boolean exito, String mensaje) { msg.setExito(exito); msg.setMensaje(mensaje); return this; }
+        public Builder texto(String cont) { msg.setContenido(cont); return this; }
+        public MensajeSocket build() { return msg; }
+    }
 }

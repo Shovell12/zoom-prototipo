@@ -120,11 +120,10 @@ public class VentanaLogin extends JFrame {
             lblMensaje.setText("Completa todos los campos.");
             return;
         }
-        MensajeSocket msg = new MensajeSocket();
-        msg.setType(MensajeSocket.LOGIN_REQUEST);
-        msg.setCorreo(correo);
-        msg.setPassword(pass);
-        conexion.enviar(msg);
+        // CÓDIGO NUEVO
+        conexion.enviar(new MensajeSocket.Builder(MensajeSocket.LOGIN_REQUEST)
+                .credenciales(correo, pass, null)
+                .build());
     }
 
     private void registrar() {
@@ -136,12 +135,10 @@ public class VentanaLogin extends JFrame {
             lblMensaje.setText("Completa correo y contraseña.");
             return;
         }
-        MensajeSocket msg = new MensajeSocket();
-        msg.setType(MensajeSocket.REGISTER_REQUEST);
-        msg.setNombres(nombres);
-        msg.setCorreo(correo);
-        msg.setPassword(pass);
-        conexion.enviar(msg);
+        // Enviar registro con Builder
+        conexion.enviar(new MensajeSocket.Builder(MensajeSocket.REGISTER_REQUEST)
+                .credenciales(correo, pass, nombres)
+                .build());
     }
 
     public void mostrarMensaje(String texto, boolean esError) {
