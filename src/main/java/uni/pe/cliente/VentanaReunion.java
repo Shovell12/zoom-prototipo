@@ -33,7 +33,8 @@ public class VentanaReunion extends JFrame {
 
     // Cámara
     private JLabel lblCamaraLocal;
-    private JLabel lblCamaraRemota;
+    private JPanel panelCamaras; // Panel contenedor que crecerá dinámicamente
+    private final Map<String, JLabel> camarasRemotas = new HashMap<>(); // Diccionario de usuarios y sus cámaras
     private javax.swing.Timer timerCamara;
     private uni.pe.cliente.CamaraCaptura camara;
 
@@ -72,17 +73,22 @@ public class VentanaReunion extends JFrame {
         JPanel panelPrincipal = new JPanel(new BorderLayout(5, 5));
         panelPrincipal.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // ── Panel izquierdo: cámaras + espera ──
-        JPanel panelIzq = new JPanel(new BorderLayout(5, 5));
-        panelIzq.setPreferredSize(new Dimension(280, 0));
+        // ── PANEL IZQUIERDO: CÁMARAS + ESPERA ──
+        JPanel panelIzq = new JPanel(new BorderLayout(10, 10));
+        panelIzq.setPreferredSize(new Dimension(300, 0)); // Un poco más ancho
 
-        lblCamaraLocal  = camaraLabel("Tu cámara");
-        lblCamaraRemota = camaraLabel("Cámara remota");
+        lblCamaraLocal = camaraLabel("Tu cámara");
 
-        JPanel panelCamaras = new JPanel(new GridLayout(2, 1, 5, 5));
+        // Usamos un contenedor auxiliar y GridLayout de 1 columna para apilar las cámaras hacia abajo
+        JPanel contenedorCamaras = new JPanel(new BorderLayout());
+        panelCamaras = new JPanel(new GridLayout(0, 1, 0, 10));
         panelCamaras.add(lblCamaraLocal);
-        panelCamaras.add(lblCamaraRemota);
-        panelIzq.add(panelCamaras, BorderLayout.CENTER);
+        contenedorCamaras.add(panelCamaras, BorderLayout.NORTH);
+
+        JScrollPane scrollCamaras = new JScrollPane(contenedorCamaras);
+        scrollCamaras.setBorder(BorderFactory.createEmptyBorder());
+        scrollCamaras.getVerticalScrollBar().setUnitIncrement(16); // Desplazamiento suave con el ratón
+        panelIzq.add(scrollCamaras, BorderLayout.CENTER);
 
         // Panel sala de espera (solo host)
         if (esHost) {
@@ -372,19 +378,34 @@ public class VentanaReunion extends JFrame {
         }
     }
 
-    public void mostrarFrameRemoto(String base64) {
+    public void mostrarFrameRemoto(String usuario, String base64) {
         SwingUtilities.invokeLater(() -> {
             try {
-                byte[] datos = Base64.getDecoder().decode(base64);
+                byte[] datos = java.util.Base64.getDecoder().decode(base64);
                 BufferedImage img = javax.imageio.ImageIO.read(new ByteArrayInputStream(datos));
                 if (img != null) {
-                    Image scaled = img.getScaledInstance(
-                            lblCamaraRemota.getWidth(), lblCamaraRemota.getHeight(), Image.SCALE_FAST);
-                    lblCamaraRemota.setIcon(new ImageIcon(scaled));
-                    lblCamaraRemota.setText("");
+
+                    // 1. Buscamos si ya tenemos una cámara creada para este usuario
+                    JLabel lblRemota = camarasRemotas.get(usuario);
+
+                    // 2. Si no existe, creamos el marco de video y redibujamos la interfaz
+                    if (lblRemota == null) {
+                        lblRemota = camaraLabel("Cámara de " + usuario);
+                        camarasRemotas.put(usuario, lblRemota);
+                        panelCamaras.add(lblRemota);
+                        panelCamaras.revalidate();
+                        panelCamaras.repaint();
+                    }
+
+                    // 3. Dibujamos el frame en su cámara correspondiente
+                    int w = lblRemota.getWidth() > 0 ? lblRemota.getWidth() : 270;
+                    int h = lblRemota.getHeight() > 0 ? lblRemota.getHeight() : 180;
+                    Image scaled = img.getScaledInstance(w, h, Image.SCALE_FAST);
+                    lblRemota.setIcon(new ImageIcon(scaled));
+                    lblRemota.setText(""); // Ocultamos el texto mientras haya video
                 }
             } catch (IOException e) {
-                System.err.println("Error al mostrar frame: " + e.getMessage());
+                System.err.println("Error al mostrar frame remoto: " + e.getMessage());
             }
         });
     }

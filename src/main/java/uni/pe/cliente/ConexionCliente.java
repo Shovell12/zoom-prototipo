@@ -190,7 +190,8 @@ public class ConexionCliente {
 
     private void handleCamara(MensajeSocket msg) {
         if (ventanaReunion != null)
-            ventanaReunion.mostrarFrameRemoto(msg.getFrameBase64());
+            // Agregamos msg.getNombreUsuario() como primer parámetro
+            ventanaReunion.mostrarFrameRemoto(msg.getNombreUsuario(), msg.getFrameBase64());
     }
 
     private void handleAudio(MensajeSocket msg) {
