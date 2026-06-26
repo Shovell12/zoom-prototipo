@@ -14,7 +14,7 @@ import java.util.concurrent.*;
 
 public class Servidor {
 
-    private static final int PUERTO = 5000;
+    public static final int PUERTO = 5000;
     private static final Map<Integer, ManejadorCliente> clientes = new ConcurrentHashMap<>();
     private static final Map<String, Set<Integer>> salas = new ConcurrentHashMap<>();
     private static final Gson gson = new Gson();
@@ -37,70 +37,35 @@ public class Servidor {
 
     public static void main(String[] args) {
         ConexionDB.getConexion();
-        ExecutorService pool = Executors.newCachedThreadPool();
         String ip = obtenerIpLocal();
         System.out.println("Servidor iniciado — IP: " + ip + "  Puerto: " + PUERTO);
 
         try {
-            ServerSocket servidor = new ServerSocket(PUERTO);
-
-            Thread hiloAceptar = new Thread(() -> {
-                try {
-                    while (!servidor.isClosed()) {
-                        Socket cliente = servidor.accept();
-                        System.out.println("Nueva conexión: " + cliente.getInetAddress());
-                        pool.execute(new ManejadorCliente(cliente));
-                    }
-                } catch (IOException e) {
-                    if (!servidor.isClosed()) {
-                        System.err.println("Error en servidor: " + e.getMessage());
-                    }
-                }
-            });
-            hiloAceptar.setDaemon(true);
-            hiloAceptar.start();
-
-            javax.swing.JFrame ventana = new javax.swing.JFrame("Servidor activo");
-            ventana.setDefaultCloseOperation(javax.swing.JFrame.DO_NOTHING_ON_CLOSE);
-            ventana.setSize(300, 160);
-            ventana.setLocationRelativeTo(null);
-            ventana.setLayout(new java.awt.BorderLayout(10, 10));
-
-            javax.swing.JLabel etiqueta = new javax.swing.JLabel(
-                    "<html><center>Servidor en ejecución.<br/>IP: <b>" + ip + "</b><br/>Puerto: <b>" + PUERTO + "</b></center></html>",
-                    javax.swing.SwingConstants.CENTER);
-            ventana.add(etiqueta, java.awt.BorderLayout.CENTER);
-
-            Runnable detener = () -> {
-                int confirmacion = javax.swing.JOptionPane.showConfirmDialog(ventana,
-                        "¿Detener el servidor? Se desconectarán todos los clientes.",
-                        "Confirmar", javax.swing.JOptionPane.YES_NO_OPTION);
-                if (confirmacion == javax.swing.JOptionPane.YES_OPTION) {
-                    notificarCierrePorServidor();
-                    try { servidor.close(); } catch (IOException ex) {
-                        System.err.println("Error al cerrar servidor: " + ex.getMessage());
-                    }
-                    pool.shutdownNow();
-                    System.out.println("Servidor detenido.");
-                    ventana.dispose();
-                    System.exit(0);
-                }
-            };
-
-            ventana.addWindowListener(new java.awt.event.WindowAdapter() {
-                public void windowClosing(java.awt.event.WindowEvent e) { detener.run(); }
-            });
-
-            javax.swing.JButton btnDetener = new javax.swing.JButton("Detener servidor");
-            btnDetener.addActionListener(e -> detener.run());
-            javax.swing.JPanel panel = new javax.swing.JPanel();
-            panel.add(btnDetener);
-            ventana.add(panel, java.awt.BorderLayout.SOUTH);
-            ventana.setVisible(true);
-
+            ServerSocket serverSocket = new ServerSocket(PUERTO);
+            ExecutorService pool = Executors.newCachedThreadPool();
+            iniciarBucleAceptacion(serverSocket, pool);
+            new ServidorVentana(serverSocket, pool, ip, PUERTO).setVisible(true);
         } catch (IOException e) {
             System.err.println("Error al iniciar servidor: " + e.getMessage());
         }
+    }
+
+    private static void iniciarBucleAceptacion(ServerSocket serverSocket, ExecutorService pool) {
+        Thread hilo = new Thread(() -> {
+            try {
+                while (!serverSocket.isClosed()) {
+                    Socket cliente = serverSocket.accept();
+                    System.out.println("Nueva conexión: " + cliente.getInetAddress());
+                    pool.execute(ManejadorCliente.crear(cliente));
+                }
+            } catch (IOException e) {
+                if (!serverSocket.isClosed()) {
+                    System.err.println("Error en servidor: " + e.getMessage());
+                }
+            }
+        });
+        hilo.setDaemon(true);
+        hilo.start();
     }
 
     public static void registrarCliente(int idUsuario, ManejadorCliente manejador) {
@@ -152,7 +117,7 @@ public class Servidor {
         salas.remove(roomCode);
     }
 
-    private static void notificarCierrePorServidor() {
+    static void notificarCierrePorServidor() {
         MensajeSocket aviso = new MensajeSocket.Builder(MensajeSocket.ROOM_CLOSED)
                 .respuesta(true, "El servidor se ha detenido.")
                 .build();

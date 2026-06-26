@@ -34,7 +34,8 @@ public class VentanaPrincipal extends JFrame implements MensajeListener {
                 case MensajeSocket.CREATE_ROOM_RESPONSE -> {
                     if (msg.isExito()) {
                         conexion.removerListener(this);
-                        new VentanaReunion(conexion, idUsuario, nombreUsuario, msg.getRoomCode(), true);
+                        new VentanaReunion(new ReunionConfig.Builder(conexion, idUsuario, nombreUsuario, msg.getRoomCode())
+                                .esHost(true).build());
                         dispose();
                     } else {
                         JOptionPane.showMessageDialog(this, "Error al crear sala: " + msg.getMensaje());
@@ -43,8 +44,8 @@ public class VentanaPrincipal extends JFrame implements MensajeListener {
                 case MensajeSocket.ADMIT_RESPONSE -> {
                     if (msg.isAceptado()) {
                         conexion.removerListener(this);
-                        new VentanaReunion(conexion, idUsuario, nombreUsuario, msg.getRoomCode(), false,
-                                new ArrayList<>(participantesPendientes));
+                        new VentanaReunion(new ReunionConfig.Builder(conexion, idUsuario, nombreUsuario, msg.getRoomCode())
+                                .participantes(new ArrayList<>(participantesPendientes)).build());
                         dispose();
                     } else {
                         participantesPendientes.clear();

@@ -32,7 +32,7 @@ public class DialogArchivos extends JDialog implements MensajeListener {
         lista.setFont(new Font("SansSerif", Font.PLAIN, 13));
 
         JScrollPane sc = new JScrollPane(lista);
-        sc.setBorder(BorderFactory.createLineBorder(new Color(0x3A3A3A)));
+        sc.setBorder(BorderFactory.createLineBorder(ReunionTheme.BORDER));
         sc.getViewport().setBackground(ReunionTheme.BG_INPUT);
 
         JButton btnEnviar = ReunionTheme.btnPrimario("Enviar archivo");

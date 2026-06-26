@@ -36,7 +36,7 @@ public class DialogChat extends JDialog implements MensajeListener {
         areaChat.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
         JScrollPane scroll = new JScrollPane(areaChat);
-        scroll.setBorder(BorderFactory.createLineBorder(new Color(0x3A3A3A)));
+        scroll.setBorder(BorderFactory.createLineBorder(ReunionTheme.BORDER));
         scroll.getViewport().setBackground(ReunionTheme.BG_INPUT);
 
         txtMensaje = new JTextField();
@@ -45,7 +45,7 @@ public class DialogChat extends JDialog implements MensajeListener {
         txtMensaje.setCaretColor(ReunionTheme.TEXT_WHITE);
         txtMensaje.setFont(new Font("SansSerif", Font.PLAIN, 13));
         txtMensaje.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0x3A3A3A)),
+                BorderFactory.createLineBorder(ReunionTheme.BORDER),
                 BorderFactory.createEmptyBorder(6, 8, 6, 8)));
         txtMensaje.putClientProperty("JTextField.placeholderText", "Escribe un mensaje…");
         txtMensaje.addActionListener(e -> enviar());

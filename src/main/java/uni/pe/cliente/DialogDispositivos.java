@@ -128,7 +128,7 @@ public class DialogDispositivos extends JDialog {
     }
 
     private void styleCombo(JComboBox<String> combo) {
-        combo.setBackground(new Color(0x3A3A3A));
+        combo.setBackground(ReunionTheme.COMBO_BG);
         combo.setForeground(ReunionTheme.TEXT_WHITE);
         combo.setFont(new Font("SansSerif", Font.PLAIN, 12));
         combo.setPreferredSize(new Dimension(260, 28));
@@ -143,7 +143,7 @@ public class DialogDispositivos extends JDialog {
             btn.setBackground(ReunionTheme.ZOOM_BLUE);
             btn.setForeground(Color.WHITE);
         } else {
-            btn.setBackground(new Color(0x4A4A4A));
+            btn.setBackground(ReunionTheme.BTN_SECONDARY_BG);
             btn.setForeground(ReunionTheme.TEXT_GRAY);
         }
         btn.setBorderPainted(false);

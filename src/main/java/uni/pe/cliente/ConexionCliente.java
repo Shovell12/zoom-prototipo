@@ -18,17 +18,14 @@ public class ConexionCliente {
     private final List<MensajeListener> listeners = new CopyOnWriteArrayList<>();
 
     public ConexionCliente(String host, int puerto) {
-        Socket s = null;
         try {
-            s = new Socket(host, puerto);
-            salida = new PrintWriter(new OutputStreamWriter(s.getOutputStream(), StandardCharsets.UTF_8), true);
-            socket = s;
+            socket = new Socket(host, puerto);
+            salida = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
             Thread hiloLector = new Thread(this::escucharServidor);
             hiloLector.setDaemon(true);
             hiloLector.start();
         } catch (IOException e) {
-            e.printStackTrace();
-            if (s != null) try { s.close(); } catch (IOException ignored) {}
+            throw new RuntimeException("No se pudo conectar al servidor " + host + ":" + puerto, e);
         }
     }
 
@@ -71,7 +68,7 @@ public class ConexionCliente {
         try {
             socket.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Error al cerrar conexión: " + e.getMessage());
         }
     }
 }

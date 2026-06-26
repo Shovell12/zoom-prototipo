@@ -100,7 +100,7 @@ public class DialogParticipantes extends JDialog implements MensajeListener {
         listaParticipantes.setFixedCellHeight(36);
 
         JScrollPane scrollP = new JScrollPane(listaParticipantes);
-        scrollP.setBorder(BorderFactory.createLineBorder(new Color(0x3A3A3A)));
+        scrollP.setBorder(BorderFactory.createLineBorder(ReunionTheme.BORDER));
         scrollP.getViewport().setBackground(ReunionTheme.BG_INPUT);
         int altoPart = esHost ? 200 : 320;
         scrollP.setPreferredSize(new Dimension(Integer.MAX_VALUE, altoPart));
@@ -142,7 +142,7 @@ public class DialogParticipantes extends JDialog implements MensajeListener {
         listaEspera.setFixedCellHeight(34);
 
         JScrollPane sc = new JScrollPane(listaEspera);
-        sc.setBorder(BorderFactory.createLineBorder(new Color(0x3A3A3A)));
+        sc.setBorder(BorderFactory.createLineBorder(ReunionTheme.BORDER));
         sc.getViewport().setBackground(ReunionTheme.BG_INPUT);
         p.add(sc, BorderLayout.CENTER);
 
@@ -227,7 +227,7 @@ public class DialogParticipantes extends JDialog implements MensajeListener {
             boolean esLocal = texto.endsWith("(Tú)");
             lbl.setFont(new Font("SansSerif", esLocal ? Font.BOLD : Font.PLAIN, 13));
             if (!isSelected) {
-                lbl.setBackground(index % 2 == 0 ? ReunionTheme.BG_INPUT : new Color(0x333338));
+                lbl.setBackground(index % 2 == 0 ? ReunionTheme.BG_INPUT : ReunionTheme.BG_INPUT_ALT);
                 lbl.setForeground(esLocal ? ReunionTheme.TEXT_WHITE : ReunionTheme.TEXT_GRAY);
             }
             lbl.setBorder(new EmptyBorder(0, 10, 0, 10));

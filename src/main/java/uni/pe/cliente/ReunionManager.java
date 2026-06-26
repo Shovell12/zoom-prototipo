@@ -110,7 +110,13 @@ public class ReunionManager {
                             .sala(roomCode).archivoChunk(archivo.getName(), Base64.getEncoder().encodeToString(chunk), i, total).build());
                 }
                 conexion.enviar(new uni.pe.protocolo.MensajeSocket.Builder(uni.pe.protocolo.MensajeSocket.FILE_END).sala(roomCode).texto(archivo.getName()).build());
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                    System.err.println("Error al enviar archivo: " + e.getMessage());
+                    javax.swing.SwingUtilities.invokeLater(() ->
+                            javax.swing.JOptionPane.showMessageDialog(null,
+                                    "No se pudo enviar el archivo:\n" + e.getMessage(),
+                                    "Error de transferencia", javax.swing.JOptionPane.ERROR_MESSAGE));
+            }
         }).start();
     }
 }

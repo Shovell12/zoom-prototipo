@@ -65,8 +65,14 @@ public class App {
                 if (ip == null || ip.isBlank()) System.exit(0);
 
                 SwingUtilities.invokeLater(() -> {
-                    ConexionCliente conexion = new ConexionCliente(ip.trim(), 5000);
-                    new VentanaLogin(conexion).setVisible(true);
+                    try {
+                        ConexionCliente conexion = new ConexionCliente(ip.trim(), Servidor.PUERTO);
+                        new VentanaLogin(conexion).setVisible(true);
+                    } catch (RuntimeException e) {
+                        JOptionPane.showMessageDialog(null,
+                                "No se pudo conectar al servidor:\n" + e.getCause().getMessage(),
+                                "Error de conexión", JOptionPane.ERROR_MESSAGE);
+                    }
                 });
             }
             default -> System.exit(0);
