@@ -5,6 +5,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -34,12 +35,22 @@ public class DialogParticipantes extends JDialog implements MensajeListener {
 
     public DialogParticipantes(JFrame owner, ConexionCliente conexion,
                                String roomCode, boolean esHost, String miNombre) {
+        this(owner, conexion, roomCode, esHost, miNombre, java.util.Collections.emptyList());
+    }
+
+    public DialogParticipantes(JFrame owner, ConexionCliente conexion,
+                               String roomCode, boolean esHost, String miNombre,
+                               List<String> participantesIniciales) {
         super(owner, "Participantes", false);
         this.conexion = conexion;
         this.roomCode = roomCode;
         this.esHost   = esHost;
 
         modeloParticipantes.addElement(miNombre + " (Tú)");
+        for (String p : participantesIniciales) {
+            if (!modeloParticipantes.contains(p) && !modeloParticipantes.contains(p + " (Tú)"))
+                modeloParticipantes.addElement(p);
+        }
 
         ReunionTheme.estilizarDialog(this, "Participantes", 300, esHost ? 520 : 420);
         setLayout(new BorderLayout(0, 0));
@@ -161,11 +172,18 @@ public class DialogParticipantes extends JDialog implements MensajeListener {
     public void onMensajeRecibido(MensajeSocket msg) {
         SwingUtilities.invokeLater(() -> {
             switch (msg.getType()) {
-                case MensajeSocket.CAMERA_FRAME, MensajeSocket.CHAT_MESSAGE, MensajeSocket.AUDIO_FRAME -> {
+                case MensajeSocket.USER_JOINED -> {
                     String nombre = msg.getNombreUsuario();
                     if (nombre != null && !modeloParticipantes.contains(nombre)
                             && !modeloParticipantes.contains(nombre + " (Tú)")) {
                         modeloParticipantes.addElement(nombre);
+                        lblConteo.setText("EN LA REUNIÓN (" + modeloParticipantes.size() + ")");
+                    }
+                }
+                case MensajeSocket.USER_LEFT -> {
+                    String nombre = msg.getNombreUsuario();
+                    if (nombre != null) {
+                        modeloParticipantes.removeElement(nombre);
                         lblConteo.setText("EN LA REUNIÓN (" + modeloParticipantes.size() + ")");
                     }
                 }

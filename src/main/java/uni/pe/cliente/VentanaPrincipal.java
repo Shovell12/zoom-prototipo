@@ -4,20 +4,55 @@ import uni.pe.protocolo.MensajeSocket;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
 
-public class VentanaPrincipal extends JFrame {
+public class VentanaPrincipal extends JFrame implements MensajeListener {
 
     private final ConexionCliente conexion;
     private final int idUsuario;
     private final String nombreUsuario;
     private JTextField txtCodigoSala, txtNombreSala;
     private JLabel lblBienvenida;
+    // Buffer de participantes que llegan antes de que VentanaReunion esté abierta
+    private final List<String> participantesPendientes = new ArrayList<>();
 
     public VentanaPrincipal(ConexionCliente conexion, int idUsuario, String nombreUsuario) {
         this.conexion = conexion;
         this.idUsuario = idUsuario;
         this.nombreUsuario = nombreUsuario;
+        this.conexion.agregarListener(this);
         iniciarUI();
+    }
+
+    @Override
+    public void onMensajeRecibido(MensajeSocket msg) {
+        SwingUtilities.invokeLater(() -> {
+            switch (msg.getType()) {
+                case MensajeSocket.USER_JOINED ->
+                    participantesPendientes.add(msg.getNombreUsuario());
+                case MensajeSocket.CREATE_ROOM_RESPONSE -> {
+                    if (msg.isExito()) {
+                        conexion.removerListener(this);
+                        new VentanaReunion(conexion, idUsuario, nombreUsuario, msg.getRoomCode(), true);
+                        dispose();
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Error al crear sala: " + msg.getMensaje());
+                    }
+                }
+                case MensajeSocket.ADMIT_RESPONSE -> {
+                    if (msg.isAceptado()) {
+                        conexion.removerListener(this);
+                        new VentanaReunion(conexion, idUsuario, nombreUsuario, msg.getRoomCode(), false,
+                                new ArrayList<>(participantesPendientes));
+                        dispose();
+                    } else {
+                        participantesPendientes.clear();
+                        JOptionPane.showMessageDialog(this, "El host no aceptó tu solicitud.");
+                    }
+                }
+            }
+        });
     }
 
     private void iniciarUI() {
@@ -114,11 +149,9 @@ public class VentanaPrincipal extends JFrame {
             JOptionPane.showMessageDialog(this, "Ingresa un nombre para la sala.");
             return;
         }
-        MensajeSocket msg = new MensajeSocket();
-        msg.setType(MensajeSocket.CREATE_ROOM);
-        msg.setRoomName(nombre);
-        msg.setIdUsuario(idUsuario);
-        conexion.enviar(msg);
+        conexion.enviar(new MensajeSocket.Builder(MensajeSocket.CREATE_ROOM)
+                .sala(null, nombre)
+                .build());
     }
 
     private void unirseASala() {
@@ -127,10 +160,8 @@ public class VentanaPrincipal extends JFrame {
             JOptionPane.showMessageDialog(this, "Ingresa el código de la sala.");
             return;
         }
-        MensajeSocket msg = new MensajeSocket();
-        msg.setType(MensajeSocket.JOIN_ROOM_REQUEST);
-        msg.setRoomCode(codigo);
-        msg.setIdUsuario(idUsuario);
-        conexion.enviar(msg);
+        conexion.enviar(new MensajeSocket.Builder(MensajeSocket.JOIN_ROOM_REQUEST)
+                .sala(codigo)
+                .build());
     }
 }

@@ -5,7 +5,7 @@ import uni.pe.protocolo.MensajeSocket;
 import javax.swing.*;
 import java.awt.*;
 
-public class VentanaLogin extends JFrame {
+public class VentanaLogin extends JFrame implements MensajeListener {
 
     private final ConexionCliente conexion;
     private JTextField txtCorreo;
@@ -15,17 +15,36 @@ public class VentanaLogin extends JFrame {
 
     public VentanaLogin(ConexionCliente conexion) {
         this.conexion = conexion;
+        this.conexion.agregarListener(this);
         iniciarUI();
+    }
+
+    @Override
+    public void onMensajeRecibido(MensajeSocket msg) {
+        switch (msg.getType()) {
+            case MensajeSocket.LOGIN_RESPONSE -> {
+                if (msg.isExito()) {
+                    SwingUtilities.invokeLater(() -> {
+                        conexion.removerListener(this);
+                        new VentanaPrincipal(conexion, msg.getIdUsuario(), msg.getNombreUsuario()).setVisible(true);
+                        dispose();
+                    });
+                } else {
+                    mostrarMensaje(msg.getMensaje(), true);
+                }
+            }
+            case MensajeSocket.REGISTER_RESPONSE ->
+                mostrarMensaje(msg.isExito() ? "Registro exitoso. Ahora inicia sesión." : msg.getMensaje(), !msg.isExito());
+        }
     }
 
     private void iniciarUI() {
         setTitle("Zoom Prototipo");
-        setSize(350, 450); // Diseño más vertical y moderno
+        setSize(350, 450);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setResizable(false);
 
-        // Panel principal con márgenes amplios
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(30, 40, 30, 40));
         GridBagConstraints g = new GridBagConstraints();
@@ -34,7 +53,7 @@ public class VentanaLogin extends JFrame {
         // --- 1. TÍTULO / LOGO ---
         JLabel titulo = new JLabel("ZOOM", SwingConstants.CENTER);
         titulo.setFont(new Font("SansSerif", Font.BOLD, 42));
-        titulo.setForeground(new Color(14, 113, 235)); // Azul oficial
+        titulo.setForeground(new Color(14, 113, 235));
         g.gridx = 0; g.gridy = 0;
         g.insets = new Insets(0, 0, 5, 0);
         panel.add(titulo, g);
@@ -43,19 +62,14 @@ public class VentanaLogin extends JFrame {
         subtitulo.setFont(new Font("SansSerif", Font.PLAIN, 14));
         subtitulo.setForeground(Color.GRAY);
         g.gridy = 1;
-        g.insets = new Insets(0, 0, 30, 0); // Espacio grande antes del formulario
+        g.insets = new Insets(0, 0, 30, 0);
         panel.add(subtitulo, g);
 
         // --- 2. CAMPO DE CORREO ---
-        // --- 2. CAMPO DE CORREO ---
         txtCorreo = new JTextField();
         txtCorreo.putClientProperty("JTextField.placeholderText", "Correo electrónico");
-
-        // Forma infalible de mostrar la "X" para limpiar el texto
         txtCorreo.putClientProperty("FlatLaf.style", "showClearButton: true");
-
         txtCorreo.setPreferredSize(new Dimension(250, 40));
-        // ... (el resto queda igual)
         txtCorreo.setFont(new Font("SansSerif", Font.PLAIN, 14));
         g.gridy = 2;
         g.insets = new Insets(0, 0, 15, 0);
@@ -64,12 +78,8 @@ public class VentanaLogin extends JFrame {
         // --- 3. CAMPO DE CONTRASEÑA ---
         txtPassword = new JPasswordField();
         txtPassword.putClientProperty("JTextField.placeholderText", "Contraseña");
-
-        // Forma infalible de mostrar el "Ojo" para revelar la contraseña
         txtPassword.putClientProperty("FlatLaf.style", "showRevealButton: true");
-
         txtPassword.setPreferredSize(new Dimension(250, 40));
-        // ... (el resto queda igual)
         txtPassword.setFont(new Font("SansSerif", Font.PLAIN, 14));
         g.gridy = 3;
         g.insets = new Insets(0, 0, 25, 0);
@@ -77,13 +87,12 @@ public class VentanaLogin extends JFrame {
 
         // --- 4. BOTÓN PRINCIPAL (INGRESAR) ---
         btnLogin = new JButton("Ingresar");
-        btnLogin.setBackground(new Color(14, 113, 235)); // Azul brillante
+        btnLogin.setBackground(new Color(14, 113, 235));
         btnLogin.setForeground(Color.WHITE);
         btnLogin.setFont(new Font("SansSerif", Font.BOLD, 14));
         btnLogin.setPreferredSize(new Dimension(250, 40));
         btnLogin.setFocusPainted(false);
         btnLogin.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        // Bordes más redondeados
         btnLogin.putClientProperty("JButton.buttonType", "roundRect");
         g.gridy = 4;
         g.insets = new Insets(0, 0, 10, 0);
@@ -91,7 +100,7 @@ public class VentanaLogin extends JFrame {
 
         // --- 5. BOTÓN SECUNDARIO (REGISTRO) ---
         btnRegistrar = new JButton("¿No tienes cuenta? Regístrate");
-        btnRegistrar.putClientProperty("JButton.buttonType", "borderless"); // Sin fondo ni borde
+        btnRegistrar.putClientProperty("JButton.buttonType", "borderless");
         btnRegistrar.setForeground(new Color(14, 113, 235));
         btnRegistrar.setCursor(new Cursor(Cursor.HAND_CURSOR));
         g.gridy = 5;
@@ -100,7 +109,7 @@ public class VentanaLogin extends JFrame {
 
         // --- 6. MENSAJE DE ERROR ---
         lblMensaje = new JLabel("", SwingConstants.CENTER);
-        lblMensaje.setForeground(new Color(224, 40, 40)); // Rojo alerta
+        lblMensaje.setForeground(new Color(224, 40, 40));
         lblMensaje.setFont(new Font("SansSerif", Font.PLAIN, 12));
         g.gridy = 6;
         g.insets = new Insets(0, 0, 0, 0);
@@ -108,7 +117,6 @@ public class VentanaLogin extends JFrame {
 
         add(panel);
 
-        // Acciones
         btnLogin.addActionListener(e -> login());
         btnRegistrar.addActionListener(e -> registrar());
         txtPassword.addActionListener(e -> login()); // Permite ingresar con 'Enter'
@@ -120,7 +128,6 @@ public class VentanaLogin extends JFrame {
             lblMensaje.setText("Completa todos los campos.");
             return;
         }
-        // CÓDIGO NUEVO
         conexion.enviar(new MensajeSocket.Builder(MensajeSocket.LOGIN_REQUEST)
                 .credenciales(correo, pass, null)
                 .build());
@@ -135,7 +142,6 @@ public class VentanaLogin extends JFrame {
             lblMensaje.setText("Completa correo y contraseña.");
             return;
         }
-        // Enviar registro con Builder
         conexion.enviar(new MensajeSocket.Builder(MensajeSocket.REGISTER_REQUEST)
                 .credenciales(correo, pass, nombres)
                 .build());

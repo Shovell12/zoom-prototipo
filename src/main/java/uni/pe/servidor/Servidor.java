@@ -76,6 +76,7 @@ public class Servidor {
                         "¿Detener el servidor? Se desconectarán todos los clientes.",
                         "Confirmar", javax.swing.JOptionPane.YES_NO_OPTION);
                 if (confirmacion == javax.swing.JOptionPane.YES_OPTION) {
+                    notificarCierrePorServidor();
                     try { servidor.close(); } catch (IOException ex) {
                         System.err.println("Error al cerrar servidor: " + ex.getMessage());
                     }
@@ -124,10 +125,37 @@ public class Servidor {
         if (cliente != null) cliente.enviar(msg);
     }
 
+    public static Map<Integer, String> getParticipantes(String roomCode) {
+        Set<Integer> miembros = salas.getOrDefault(roomCode, Collections.emptySet());
+        Map<Integer, String> result = new LinkedHashMap<>();
+        for (int id : miembros) {
+            ManejadorCliente mc = clientes.get(id);
+            if (mc != null) result.put(id, mc.getNombreUsuario());
+        }
+        return result;
+    }
+
     public static void broadcast(String roomCode, MensajeSocket msg, int excepto) {
         Set<Integer> miembros = salas.getOrDefault(roomCode, Collections.emptySet());
         for (int id : miembros) {
             if (id != excepto) enviarA(id, msg);
         }
+    }
+
+    public static void cerrarSala(String roomCode) {
+        MensajeSocket aviso = new MensajeSocket.Builder(MensajeSocket.ROOM_CLOSED)
+                .sala(roomCode)
+                .respuesta(true, "El anfitrión ha terminado la reunión.")
+                .build();
+        Set<Integer> miembros = salas.getOrDefault(roomCode, Collections.emptySet());
+        for (int id : miembros) enviarA(id, aviso);
+        salas.remove(roomCode);
+    }
+
+    private static void notificarCierrePorServidor() {
+        MensajeSocket aviso = new MensajeSocket.Builder(MensajeSocket.ROOM_CLOSED)
+                .respuesta(true, "El servidor se ha detenido.")
+                .build();
+        for (ManejadorCliente cliente : clientes.values()) cliente.enviar(aviso);
     }
 }

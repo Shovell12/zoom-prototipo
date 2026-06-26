@@ -8,9 +8,10 @@ public class MensajeSocket {
             ADMIT_USER = "ADMIT_USER", ADMIT_RESPONSE = "ADMIT_RESPONSE", CHAT_MESSAGE = "CHAT_MESSAGE",
             FILE_START = "FILE_START", FILE_CHUNK = "FILE_CHUNK", FILE_END = "FILE_END",
             FILE_NOTIFY = "FILE_NOTIFY", FILE_DOWNLOAD_REQUEST = "FILE_DOWNLOAD_REQUEST",
-            CAMERA_FRAME = "CAMERA_FRAME", AUDIO_FRAME = "AUDIO_FRAME",
+            CAMERA_FRAME = "CAMERA_FRAME", CAMERA_STOP = "CAMERA_STOP", AUDIO_FRAME = "AUDIO_FRAME",
             SCREEN_SHARE = "SCREEN_SHARE", SCREEN_SHARE_STOP = "SCREEN_SHARE_STOP",
-            LEAVE_ROOM = "LEAVE_ROOM", ROOM_CLOSED = "ROOM_CLOSED", ERROR = "ERROR";
+            LEAVE_ROOM = "LEAVE_ROOM", ROOM_CLOSED = "ROOM_CLOSED",
+            USER_JOINED = "USER_JOINED", USER_LEFT = "USER_LEFT", ERROR = "ERROR";
 
     private String type, correo, password, nombres, nombreUsuario, roomCode, roomName, mensaje, contenido, nombreArchivo, chunkBase64, frameBase64, audioBase64;
     private int idUsuario, chunkIndex, totalChunks;

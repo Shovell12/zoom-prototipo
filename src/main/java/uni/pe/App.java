@@ -1,6 +1,7 @@
 package uni.pe;
 
 import uni.pe.cliente.ConexionCliente;
+import uni.pe.cliente.VentanaLogin;
 import uni.pe.servidor.Servidor;
 
 import javax.swing.*;
@@ -28,8 +29,6 @@ public class App {
             System.setErr(new PrintStream(System.err, true, "UTF-8"));
         } catch (Exception ignored) {}
 
-        // Look and Feel moderno con FlatLaf (Tema Oscuro)
-        // Look and Feel moderno con FlatLaf (Tema Oscuro)
         try {
             com.formdev.flatlaf.FlatDarkLaf.setup();
 
@@ -62,8 +61,13 @@ public class App {
                         "Ingresa la IP del servidor:",
                         "Conectar al servidor",
                         JOptionPane.PLAIN_MESSAGE);
+
                 if (ip == null || ip.isBlank()) System.exit(0);
-                SwingUtilities.invokeLater(() -> new ConexionCliente(ip.trim()).iniciar());
+
+                SwingUtilities.invokeLater(() -> {
+                    ConexionCliente conexion = new ConexionCliente(ip.trim(), 5000);
+                    new VentanaLogin(conexion).setVisible(true);
+                });
             }
             default -> System.exit(0);
         }

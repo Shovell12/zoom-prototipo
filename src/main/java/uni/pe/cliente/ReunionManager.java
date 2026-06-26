@@ -101,15 +101,15 @@ public class ReunionManager {
                 byte[] datos = Files.readAllBytes(archivo.toPath());
                 int CHUNK = 4096;
                 int total = (int) Math.ceil((double) datos.length / CHUNK);
-                conexion.enviar(new uni.pe.protocolo.MensajeSocket.Builder("FILE_START")
+                conexion.enviar(new uni.pe.protocolo.MensajeSocket.Builder(uni.pe.protocolo.MensajeSocket.FILE_START)
                         .sala(roomCode).archivoInfo(archivo.getName(), datos.length).build());
                 for (int i = 0; i < total; i++) {
                     int desde = i * CHUNK;
                     byte[] chunk = Arrays.copyOfRange(datos, desde, Math.min(desde + CHUNK, datos.length));
-                    conexion.enviar(new uni.pe.protocolo.MensajeSocket.Builder("FILE_CHUNK")
+                    conexion.enviar(new uni.pe.protocolo.MensajeSocket.Builder(uni.pe.protocolo.MensajeSocket.FILE_CHUNK)
                             .sala(roomCode).archivoChunk(archivo.getName(), Base64.getEncoder().encodeToString(chunk), i, total).build());
                 }
-                conexion.enviar(new uni.pe.protocolo.MensajeSocket.Builder("FILE_END").sala(roomCode).texto(archivo.getName()).build());
+                conexion.enviar(new uni.pe.protocolo.MensajeSocket.Builder(uni.pe.protocolo.MensajeSocket.FILE_END).sala(roomCode).texto(archivo.getName()).build());
             } catch (Exception e) { e.printStackTrace(); }
         }).start();
     }

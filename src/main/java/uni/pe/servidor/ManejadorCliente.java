@@ -36,8 +36,14 @@ public class ManejadorCliente implements Runnable {
         comandos.put(MensajeSocket.ADMIT_USER, this::handleAdmitir);
         comandos.put(MensajeSocket.CHAT_MESSAGE, this::handleChat);
         comandos.put(MensajeSocket.CAMERA_FRAME, this::handleCamara);
+        comandos.put(MensajeSocket.CAMERA_STOP,  this::handleCamaraStop);
         comandos.put(MensajeSocket.AUDIO_FRAME, this::handleAudio);
-        comandos.put(MensajeSocket.LEAVE_ROOM, this::handleSalir);
+        comandos.put(MensajeSocket.LEAVE_ROOM,  this::handleSalir);
+        comandos.put(MensajeSocket.FILE_START,        this::handleFileStart);
+        comandos.put(MensajeSocket.FILE_CHUNK,        this::handleFileChunk);
+        comandos.put(MensajeSocket.FILE_END,          this::handleFileEnd);
+        comandos.put(MensajeSocket.SCREEN_SHARE,      this::handleScreenShare);
+        comandos.put(MensajeSocket.SCREEN_SHARE_STOP, this::handleScreenShareStop);
     }
 
     @Override
@@ -107,9 +113,27 @@ public class ManejadorCliente implements Runnable {
         if (sala == null) return;
         if (msg.isAceptado()) {
             SalaDAO.admitirUsuario(sala.getIdSala(), msg.getIdUsuario());
+            String nombreNuevo = msg.getNombreUsuario();
+            // Enviar participantes existentes al nuevo usuario antes de añadirlo
+            for (Map.Entry<Integer, String> e : Servidor.getParticipantes(msg.getRoomCode()).entrySet()) {
+                Servidor.enviarA(msg.getIdUsuario(), new MensajeSocket.Builder(MensajeSocket.USER_JOINED)
+                        .sala(msg.getRoomCode())
+                        .usuario(e.getKey(), e.getValue())
+                        .build());
+            }
+            // Añadir nuevo usuario a la sala
             Servidor.unirseASala(msg.getRoomCode(), msg.getIdUsuario());
+            // Notificar a los existentes sobre el nuevo participante
+            Servidor.broadcast(msg.getRoomCode(), new MensajeSocket.Builder(MensajeSocket.USER_JOINED)
+                    .sala(msg.getRoomCode())
+                    .usuario(msg.getIdUsuario(), nombreNuevo)
+                    .build(), msg.getIdUsuario());
         }
-        Servidor.enviarA(msg.getIdUsuario(), msg);
+        MensajeSocket resp = new MensajeSocket.Builder(MensajeSocket.ADMIT_RESPONSE)
+                .sala(msg.getRoomCode())
+                .build();
+        resp.setAceptado(msg.isAceptado());
+        Servidor.enviarA(msg.getIdUsuario(), resp);
     }
 
     private void handleChat(MensajeSocket msg) {
@@ -125,14 +149,67 @@ public class ManejadorCliente implements Runnable {
         Servidor.broadcast(msg.getRoomCode(), msg, idUsuario);
     }
 
+    private void handleCamaraStop(MensajeSocket msg) {
+        msg.setIdUsuario(idUsuario);
+        msg.setNombreUsuario(nombreUsuario);
+        Servidor.broadcast(msg.getRoomCode(), msg, idUsuario);
+    }
+
     private void handleAudio(MensajeSocket msg) { Servidor.broadcast(msg.getRoomCode(), msg, idUsuario); }
 
     private void handleSalir(MensajeSocket msg) {
-        if (roomCode != null) { Servidor.salirDeSala(roomCode, idUsuario); roomCode = null; }
+        if (roomCode == null) return;
+        Sala sala = SalaDAO.buscarPorCodigo(roomCode);
+        if (sala != null && sala.getIdHost() == idUsuario) {
+            Servidor.cerrarSala(roomCode);
+        } else {
+            Servidor.broadcast(roomCode, new MensajeSocket.Builder(MensajeSocket.USER_LEFT)
+                    .sala(roomCode).usuario(idUsuario, nombreUsuario).build(), idUsuario);
+            Servidor.salirDeSala(roomCode, idUsuario);
+        }
+        roomCode = null;
+    }
+
+    private void handleFileStart(MensajeSocket msg) {
+        msg.setIdUsuario(idUsuario);
+        msg.setNombreUsuario(nombreUsuario);
+        Servidor.broadcast(msg.getRoomCode(), msg, idUsuario);
+    }
+
+    private void handleFileChunk(MensajeSocket msg) {
+        Servidor.broadcast(msg.getRoomCode(), msg, idUsuario);
+    }
+
+    private void handleScreenShare(MensajeSocket msg) {
+        msg.setIdUsuario(idUsuario);
+        msg.setNombreUsuario(nombreUsuario);
+        Servidor.broadcast(msg.getRoomCode(), msg, idUsuario);
+    }
+
+    private void handleScreenShareStop(MensajeSocket msg) {
+        Servidor.broadcast(msg.getRoomCode(), msg, idUsuario);
+    }
+
+    private void handleFileEnd(MensajeSocket msg) {
+        MensajeSocket notify = new MensajeSocket.Builder(MensajeSocket.FILE_NOTIFY)
+                .sala(msg.getRoomCode())
+                .archivoInfo(msg.getContenido(), 0)
+                .usuario(idUsuario, nombreUsuario)
+                .build();
+        Servidor.broadcast(msg.getRoomCode(), notify, idUsuario);
     }
 
     // --- UTILIDADES ---
+    public String getNombreUsuario() { return nombreUsuario; }
     public void enviar(MensajeSocket msg) { if (salida != null) salida.println(gson.toJson(msg)); }
     private MensajeSocket error(String txt) { return new MensajeSocket.Builder(MensajeSocket.ERROR).texto(txt).build(); }
-    private void desconectar() { Servidor.eliminarCliente(idUsuario); if (roomCode != null) Servidor.salirDeSala(roomCode, idUsuario); try { socket.close(); } catch (IOException ignored) {} }
+    private void desconectar() {
+        Servidor.eliminarCliente(idUsuario);
+        if (roomCode != null) {
+            Servidor.broadcast(roomCode, new MensajeSocket.Builder(MensajeSocket.USER_LEFT)
+                    .sala(roomCode).usuario(idUsuario, nombreUsuario).build(), idUsuario);
+            Servidor.salirDeSala(roomCode, idUsuario);
+        }
+        try { socket.close(); } catch (IOException ignored) {}
+    }
 }

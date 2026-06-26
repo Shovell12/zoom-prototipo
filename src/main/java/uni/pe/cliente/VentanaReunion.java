@@ -40,7 +40,8 @@ public class VentanaReunion extends JFrame implements MensajeListener {
     // ── Pila de cámaras (lado izquierdo) ─────────────────────────────────────
     private JPanel                    panelCamaras;
     private JLabel                    lblCamaraLocal;
-    private final Map<String, JLabel> camarasRemotas = new LinkedHashMap<>();
+    private final Map<String, JLabel> camarasRemotas     = new LinkedHashMap<>();
+    private final Map<String, JPanel> participantesTiles = new LinkedHashMap<>();
 
     // ── Área de pantalla compartida (lado derecho) ────────────────────────────
     private JPanel     panelPantalla;
@@ -67,6 +68,11 @@ public class VentanaReunion extends JFrame implements MensajeListener {
 
     public VentanaReunion(ConexionCliente conexion, int idUsuario, String nombre,
                           String roomCode, boolean esHost) {
+        this(conexion, idUsuario, nombre, roomCode, esHost, java.util.Collections.emptyList());
+    }
+
+    public VentanaReunion(ConexionCliente conexion, int idUsuario, String nombre,
+                          String roomCode, boolean esHost, java.util.List<String> participantesIniciales) {
         this.conexion      = conexion;
         this.idUsuario     = idUsuario;
         this.nombreUsuario = nombre;
@@ -74,7 +80,7 @@ public class VentanaReunion extends JFrame implements MensajeListener {
         this.esHost        = esHost;
 
         dialogChat          = new DialogChat(this, conexion, roomCode, nombreUsuario);
-        dialogParticipantes = new DialogParticipantes(this, conexion, roomCode, esHost, nombreUsuario);
+        dialogParticipantes = new DialogParticipantes(this, conexion, roomCode, esHost, nombreUsuario, participantesIniciales);
         dialogArchivos      = new DialogArchivos(this, conexion, roomCode, manager);
 
         // Registro centralizado: el ciclo de vida de todos los listeners lo gestiona VentanaReunion.
@@ -83,6 +89,8 @@ public class VentanaReunion extends JFrame implements MensajeListener {
         conexion.agregarListener(dialogParticipantes);
         conexion.agregarListener(dialogArchivos);
         iniciarUI();
+        // Tiles de participantes que ya estaban en la sala antes de que entráramos
+        for (String p : participantesIniciales) agregarParticipanteTile(p);
         manager.iniciarReproductor(PreferenciasAudio.getSalida());
     }
 
@@ -348,8 +356,14 @@ public class VentanaReunion extends JFrame implements MensajeListener {
     public void onMensajeRecibido(MensajeSocket msg) {
         SwingUtilities.invokeLater(() -> {
             switch (msg.getType()) {
+                case MensajeSocket.USER_JOINED ->
+                    agregarParticipanteTile(msg.getNombreUsuario());
+                case MensajeSocket.USER_LEFT ->
+                    eliminarParticipanteTile(msg.getNombreUsuario());
                 case MensajeSocket.CAMERA_FRAME ->
                     mostrarFrameRemoto(msg.getNombreUsuario(), msg.getFrameBase64());
+                case MensajeSocket.CAMERA_STOP ->
+                    limpiarFrameRemoto(msg.getNombreUsuario());
                 case MensajeSocket.AUDIO_FRAME -> {
                     if (msg.getAudioBase64() != null)
                         manager.reproducir(Base64.getDecoder().decode(msg.getAudioBase64()));
@@ -383,6 +397,7 @@ public class VentanaReunion extends JFrame implements MensajeListener {
             timerCamara.stop();
             manager.detenerCamara();
             lblCamaraLocal.setIcon(null);
+            conexion.enviar(new MensajeSocket.Builder(MensajeSocket.CAMERA_STOP).sala(roomCode).build());
             btn.setText("Iniciar Video");
             btn.setIcon(ReunionTheme.icono("cam_off.png", 22));
             btn.setForeground(ReunionTheme.TEXT_GRAY);
@@ -405,24 +420,45 @@ public class VentanaReunion extends JFrame implements MensajeListener {
         }
     }
 
+    private void agregarParticipanteTile(String usuario) {
+        if (usuario == null || usuario.equals(nombreUsuario) || participantesTiles.containsKey(usuario)) return;
+        JLabel videoLbl = new JLabel();
+        videoLbl.setOpaque(false);
+        videoLbl.setHorizontalAlignment(SwingConstants.CENTER);
+        camarasRemotas.put(usuario, videoLbl);
+        JPanel tile = buildTile(usuario, videoLbl);
+        participantesTiles.put(usuario, tile);
+        panelCamaras.add(tile);
+        panelCamaras.revalidate();
+        panelCamaras.repaint();
+    }
+
+    private void eliminarParticipanteTile(String usuario) {
+        JPanel tile = participantesTiles.remove(usuario);
+        if (tile != null) {
+            panelCamaras.remove(tile);
+            panelCamaras.revalidate();
+            panelCamaras.repaint();
+        }
+        camarasRemotas.remove(usuario);
+    }
+
     private void mostrarFrameRemoto(String usuario, String base64) {
         if (base64 == null || usuario == null) return;
         try {
             BufferedImage img = ImageIO.read(
                     new ByteArrayInputStream(Base64.getDecoder().decode(base64)));
             if (img == null) return;
-            if (!camarasRemotas.containsKey(usuario)) {
-                JLabel videoLbl = new JLabel();
-                videoLbl.setOpaque(false);
-                videoLbl.setHorizontalAlignment(SwingConstants.CENTER);
-                camarasRemotas.put(usuario, videoLbl);
-                panelCamaras.add(buildTile(usuario, videoLbl));
-                panelCamaras.revalidate();
-                panelCamaras.repaint();
-            }
-            camarasRemotas.get(usuario).setIcon(
-                    new ImageIcon(img.getScaledInstance(-1, 110, Image.SCALE_FAST)));
+            // Si aún no tiene tile (caso borde), créalo
+            if (!participantesTiles.containsKey(usuario)) agregarParticipanteTile(usuario);
+            JLabel lbl = camarasRemotas.get(usuario);
+            if (lbl != null) lbl.setIcon(new ImageIcon(img.getScaledInstance(-1, 110, Image.SCALE_FAST)));
         } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private void limpiarFrameRemoto(String usuario) {
+        JLabel lbl = camarasRemotas.get(usuario);
+        if (lbl != null) lbl.setIcon(null);
     }
 
     // ── Micrófono ─────────────────────────────────────────────────────────────

@@ -62,17 +62,27 @@ public class SalaDAO {
 
     public static boolean admitirUsuario(int idSala, int idUsuario) {
         try {
+            String check = "SELECT COUNT(*) FROM ParticipantesSala WHERE IdSala = ? AND IdUsuario = ?";
+            try (PreparedStatement ps = ConexionDB.getConexion().prepareStatement(check)) {
+                ps.setInt(1, idSala);
+                ps.setInt(2, idUsuario);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next() && rs.getInt(1) > 0) return true;
+            }
+
             String upd = "UPDATE SolicitudesSala SET Estado = 'Aceptado' WHERE IdSala = ? AND IdUsuario = ?";
-            PreparedStatement ps1 = ConexionDB.getConexion().prepareStatement(upd);
-            ps1.setInt(1, idSala);
-            ps1.setInt(2, idUsuario);
-            ps1.executeUpdate();
+            try (PreparedStatement ps1 = ConexionDB.getConexion().prepareStatement(upd)) {
+                ps1.setInt(1, idSala);
+                ps1.setInt(2, idUsuario);
+                ps1.executeUpdate();
+            }
 
             String ins = "INSERT INTO ParticipantesSala (IdSala, IdUsuario, Estado, FechaIngreso) VALUES (?, ?, 'Aceptado', datetime('now'))";
-            PreparedStatement ps2 = ConexionDB.getConexion().prepareStatement(ins);
-            ps2.setInt(1, idSala);
-            ps2.setInt(2, idUsuario);
-            ps2.executeUpdate();
+            try (PreparedStatement ps2 = ConexionDB.getConexion().prepareStatement(ins)) {
+                ps2.setInt(1, idSala);
+                ps2.setInt(2, idUsuario);
+                ps2.executeUpdate();
+            }
             return true;
         } catch (SQLException e) {
             System.err.println("Error al admitir usuario: " + e.getMessage());
