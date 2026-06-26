@@ -9,7 +9,7 @@ public class MicrofoneCaptura {
     public static final AudioFormat FORMATO = new AudioFormat(16000, 16, 1, true, false);
     private static final int BYTES_POR_CHUNK = 1600; // ~50 ms a 16kHz/16bit/mono
 
-    private TargetDataLine linea;
+    private volatile TargetDataLine linea;
     private volatile boolean activa = false;
 
     public static List<Mixer.Info> listarMicrofonos() {
@@ -39,14 +39,14 @@ public class MicrofoneCaptura {
     public boolean iniciar(Mixer.Info mixerInfo) {
         try {
             DataLine.Info info = new DataLine.Info(TargetDataLine.class, FORMATO);
-            Mixer mixer = AudioSystem.getMixer(mixerInfo);
-            linea = (TargetDataLine) mixer.getLine(info);
+            linea = (TargetDataLine) AudioSystem.getMixer(mixerInfo).getLine(info);
             linea.open(FORMATO);
             linea.start();
             activa = true;
             return true;
-        } catch (LineUnavailableException e) {
+        } catch (LineUnavailableException | IllegalArgumentException e) {
             System.err.println("Error al iniciar micrófono: " + e.getMessage());
+            if (linea != null) { linea.close(); linea = null; }
             return false;
         }
     }
@@ -65,21 +65,28 @@ public class MicrofoneCaptura {
             return true;
         } catch (LineUnavailableException e) {
             System.err.println("Error al iniciar micrófono: " + e.getMessage());
+            if (linea != null) { linea.close(); linea = null; }
             return false;
         }
     }
 
     public byte[] capturarChunk() {
-        if (!activa || linea == null) return null;
-        byte[] buffer = new byte[BYTES_POR_CHUNK];
-        int leidos = linea.read(buffer, 0, buffer.length);
-        if (leidos <= 0) return null;
-        if (leidos < buffer.length) {
-            byte[] recortado = new byte[leidos];
-            System.arraycopy(buffer, 0, recortado, 0, leidos);
-            return recortado;
+        TargetDataLine l = linea; // copia local evita que otro hilo la anule entre el check y el read
+        if (!activa || l == null) return null;
+        try {
+            byte[] buffer = new byte[BYTES_POR_CHUNK];
+            int leidos = l.read(buffer, 0, buffer.length);
+            if (leidos <= 0) return null;
+            if (leidos < buffer.length) {
+                byte[] recortado = new byte[leidos];
+                System.arraycopy(buffer, 0, recortado, 0, leidos);
+                return recortado;
+            }
+            return buffer;
+        } catch (IllegalStateException e) {
+            // La línea fue cerrada justo mientras se leía; el hilo captor terminará en el próximo ciclo.
+            return null;
         }
-        return buffer;
     }
 
     public void detener() {
