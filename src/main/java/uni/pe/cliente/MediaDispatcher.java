@@ -21,21 +21,24 @@ class MediaDispatcher {
     private static final int CAMERA_SCALE_H     = 110;
 
     private final ReunionManager      manager;
+    private final AudioPlayer         audioPlayer;
     private final ConexionCliente     conexion;
     private final String              roomCode;
-    private final Consumer<ImageIcon> onLocalFrame;    // preview cámara local
-    private final Supplier<Dimension> pantallaSize;    // dimensiones del label de pantalla
-    private final Consumer<ImageIcon> onPantallaFrame; // preview pantalla local
+    private final Consumer<ImageIcon> onLocalFrame;
+    private final Supplier<Dimension> pantallaSize;
+    private final Consumer<ImageIcon> onPantallaFrame;
 
     private javax.swing.Timer timerCamara;
     private javax.swing.Timer timerPantalla;
     private Thread            hiloMicrofono;
 
-    MediaDispatcher(ReunionManager manager, ConexionCliente conexion, String roomCode,
+    MediaDispatcher(ReunionManager manager, AudioPlayer audioPlayer,
+                    ConexionCliente conexion, String roomCode,
                     Consumer<ImageIcon> onLocalFrame,
                     Supplier<Dimension> pantallaSize,
                     Consumer<ImageIcon> onPantallaFrame) {
         this.manager         = manager;
+        this.audioPlayer     = audioPlayer;
         this.conexion        = conexion;
         this.roomCode        = roomCode;
         this.onLocalFrame    = onLocalFrame;
@@ -159,7 +162,7 @@ class MediaDispatcher {
         if (hiloMicrofono != null && hiloMicrofono.isAlive())    hiloMicrofono.interrupt();
         manager.detenerCamara();
         manager.detenerMicrofono();
-        manager.detenerReproductor();
+        audioPlayer.detener();
         manager.detenerCompartirPantalla();
     }
 }

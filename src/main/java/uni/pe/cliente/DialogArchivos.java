@@ -6,22 +6,17 @@ import java.awt.*;
 
 /**
  * Ventana emergente de archivos compartidos.
- * Patrón Observer: escucha FILE_NOTIFY para actualizar la lista.
- * Patrón Facade: delega el envío real a ReunionManager.
+ * Observer: escucha FILE_NOTIFY para actualizar la lista.
+ * Delega la transferencia a FileTransferService.
  */
 public class DialogArchivos extends JDialog implements MensajeListener {
 
-    private final ConexionCliente            conexion;
-    private final String                     roomCode;
-    private final ReunionManager             manager;
+    private final FileTransferService        fileTransferService;
     private final DefaultListModel<String>   modeloArchivos = new DefaultListModel<>();
 
-    public DialogArchivos(JFrame owner, ConexionCliente conexion,
-                          String roomCode, ReunionManager manager) {
+    public DialogArchivos(JFrame owner, FileTransferService fileTransferService) {
         super(owner, "Archivos compartidos", false);
-        this.conexion = conexion;
-        this.roomCode = roomCode;
-        this.manager  = manager;
+        this.fileTransferService = fileTransferService;
 
         ReunionTheme.estilizarDialog(this, "Archivos compartidos", 300, 400);
         setLayout(new BorderLayout(0, 8));
@@ -57,6 +52,6 @@ public class DialogArchivos extends JDialog implements MensajeListener {
     private void seleccionarYEnviar() {
         JFileChooser chooser = new JFileChooser();
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION)
-            manager.enviarArchivo(chooser.getSelectedFile(), roomCode, conexion);
+            fileTransferService.enviar(chooser.getSelectedFile());
     }
 }
