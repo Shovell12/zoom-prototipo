@@ -27,6 +27,7 @@ public class VentanaReunion extends JFrame {
     private final ReunionEventBus bus         = new ReunionEventBus();
     private final String          roomCode;
 
+    private final FileTransferService  fileTransferService;
     private final DialogChat          dialogChat;
     private final DialogParticipantes dialogParticipantes;
     private final DialogArchivos      dialogArchivos;
@@ -44,7 +45,7 @@ public class VentanaReunion extends JFrame {
         this.conexion = config.conexion;
         this.roomCode = config.roomCode;
 
-        FileTransferService fileTransferService = new FileTransferService(conexion, config.roomCode);
+        fileTransferService = new FileTransferService(conexion, config.roomCode);
 
         dialogChat          = new DialogChat(this, conexion, config.roomCode, config.nombreUsuario);
         dialogParticipantes = new DialogParticipantes(this, conexion, config.roomCode,
@@ -71,6 +72,7 @@ public class VentanaReunion extends JFrame {
         bus.subscribe(ReunionEvent.Type.LEAVE_MEETING, e -> salirReunion());
 
         conexion.agregarListener(networkBridge);
+        conexion.agregarListener(fileTransferService);
         conexion.agregarListener(dialogChat);
         conexion.agregarListener(dialogParticipantes);
         conexion.agregarListener(dialogArchivos);
@@ -139,6 +141,7 @@ public class VentanaReunion extends JFrame {
         topBar.detener();
         mediaDispatcher.stopAll();
         conexion.removerListener(networkBridge);
+        conexion.removerListener(fileTransferService);
         conexion.removerListener(dialogChat);
         conexion.removerListener(dialogParticipantes);
         conexion.removerListener(dialogArchivos);

@@ -16,6 +16,20 @@ public class ConexionDB {
     private ConexionDB() {
     }
 
+    // 2. Metodo sincronizado (Thread-Safe)
+    public static synchronized Connection getConexion() {
+        if (conexion == null) {
+            try {
+                conexion = DriverManager.getConnection(URL);
+                System.out.println("Base de datos conectada.");
+                inicializarTablas();
+            } catch (SQLException e) {
+                System.err.println("Error al conectar BD: " + e.getMessage());
+            }
+        }
+        return conexion;
+    }
+
     private static String buildUrl() {
         try {
             URI uri = ConexionDB.class.getProtectionDomain()
@@ -30,20 +44,6 @@ public class ConexionDB {
         } catch (Exception e) {
             return "jdbc:sqlite:basedatos/zoom.db";
         }
-    }
-
-    // 2. Metodo sincronizado (Thread-Safe)
-    public static synchronized Connection getConexion() {
-        if (conexion == null) {
-            try {
-                conexion = DriverManager.getConnection(URL);
-                System.out.println("Base de datos conectada.");
-                inicializarTablas();
-            } catch (SQLException e) {
-                System.err.println("Error al conectar BD: " + e.getMessage());
-            }
-        }
-        return conexion;
     }
 
     private static void inicializarTablas() {

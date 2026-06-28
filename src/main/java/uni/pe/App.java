@@ -5,42 +5,16 @@ import uni.pe.cliente.VentanaLogin;
 import uni.pe.servidor.Servidor;
 
 import javax.swing.*;
-import java.io.File;
-import java.io.PrintStream;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 public class App {
+
     public static void main(String[] args) {
-        // En Windows, el JAR se auto-relanza añadiendo los flags necesarios para
-        // bridj (backend nativo de webcam-capture) bajo Java 9+ con JPMS.
-        if (isWindows() && System.getProperty("app.relaunched") == null) {
-            if (relaunch(args)) return;
-        }
+        if (WindowsRelaunch.necesario() && WindowsRelaunch.ejecutar(args)) return;
+        EntornoApp.configurar();
+        mostrarSelectorModo(args);
+    }
 
-        // HiDPI — debe establecerse antes de que AWT inicialice
-        System.setProperty("sun.java2d.uiScale", "true");
-
-        // Salida de consola en UTF-8 (evita caracteres corruptos en Windows CMD)
-        try {
-            System.setOut(new PrintStream(System.out, true, "UTF-8"));
-            System.setErr(new PrintStream(System.err, true, "UTF-8"));
-        } catch (Exception ignored) {}
-
-        try {
-            com.formdev.flatlaf.FlatDarkLaf.setup();
-
-            // Personalización de colores estilo Zoom
-            UIManager.put("Component.accentColor", new java.awt.Color(14, 113, 235));
-            UIManager.put("Button.arc", 8);
-            UIManager.put("Component.arc", 8);
-            UIManager.put("TextComponent.arc", 8);
-        } catch (Exception e) {
-            System.err.println("No se pudo aplicar el tema FlatLaf: " + e.getMessage());
-        }
-
+    private static void mostrarSelectorModo(String[] args) {
         String[] opciones = {"Servidor", "Cliente"};
         int eleccion = JOptionPane.showOptionDialog(
                 null,
@@ -55,66 +29,28 @@ public class App {
 
         switch (eleccion) {
             case 0 -> Servidor.main(args);
-            case 1 -> {
-                String ip = JOptionPane.showInputDialog(
-                        null,
-                        "Ingresa la IP del servidor:",
-                        "Conectar al servidor",
-                        JOptionPane.PLAIN_MESSAGE);
-
-                if (ip == null || ip.isBlank()) System.exit(0);
-
-                SwingUtilities.invokeLater(() -> {
-                    try {
-                        ConexionCliente conexion = new ConexionCliente(ip.trim(), Servidor.PUERTO);
-                        new VentanaLogin(conexion).setVisible(true);
-                    } catch (RuntimeException e) {
-                        JOptionPane.showMessageDialog(null,
-                                "No se pudo conectar al servidor:\n" + e.getCause().getMessage(),
-                                "Error de conexión", JOptionPane.ERROR_MESSAGE);
-                    }
-                });
-            }
+            case 1 -> iniciarCliente();
             default -> System.exit(0);
         }
     }
 
-    private static boolean isWindows() {
-        return System.getProperty("os.name", "").toLowerCase().contains("win");
-    }
+    private static void iniciarCliente() {
+        String ip = JOptionPane.showInputDialog(
+                null,
+                "Ingresa la IP del servidor:",
+                "Conectar al servidor",
+                JOptionPane.PLAIN_MESSAGE);
 
-    /**
-     * Relanza el JAR actual añadiendo los flags de JVM que bridj necesita bajo JPMS
-     * (Java 9+). Detecta automáticamente el ejecutable java/javaw con el que se
-     * inició el proceso para respetar el modo consola vs. sin consola.
-     * Retorna true si el relanzamiento fue exitoso (el llamador debe salir).
-     */
-    private static boolean relaunch(String[] args) {
-        try {
-            URI uri = App.class.getProtectionDomain().getCodeSource().getLocation().toURI();
-            File jar = new File(uri);
-            if (!jar.getName().endsWith(".jar")) return false; // IDE (clases sueltas)
+        if (ip == null || ip.isBlank()) { System.exit(0); return; }
 
-            String javaExe = ProcessHandle.current().info().command().orElse("java");
-
-            List<String> cmd = new ArrayList<>(List.of(
-                javaExe,
-                "--add-opens", "java.base/java.lang=ALL-UNNAMED",
-                "--add-opens", "java.base/sun.misc=ALL-UNNAMED",
-                "--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED",
-                "--add-opens", "java.base/java.nio=ALL-UNNAMED",
-                "-Dapp.relaunched=true",
-                "-Dfile.encoding=UTF-8",
-                "-Dstdout.encoding=UTF-8",
-                "-Dsun.java2d.uiScale=true",
-                "-jar", jar.getAbsolutePath()
-            ));
-            cmd.addAll(Arrays.asList(args));
-
-            new ProcessBuilder(cmd).inheritIO().start().waitFor();
-            return true;
-        } catch (Exception e) {
-            return false; // si falla el relanzamiento, continúa sin los flags
-        }
+        SwingUtilities.invokeLater(() -> {
+            try {
+                new VentanaLogin(new ConexionCliente(ip.trim(), Servidor.PUERTO)).setVisible(true);
+            } catch (RuntimeException e) {
+                JOptionPane.showMessageDialog(null,
+                        "No se pudo conectar al servidor:\n" + e.getCause().getMessage(),
+                        "Error de conexión", JOptionPane.ERROR_MESSAGE);
+            }
+        });
     }
 }
